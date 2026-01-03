@@ -5,6 +5,7 @@ NetworkManager::NetworkManager(String ssid, String password) {
     this->ssid = ssid;
     this->password = password;
 }
+
 bool NetworkManager::connect_to_wifi(){
     WiFi.mode(WIFI_STA);
       
@@ -55,11 +56,6 @@ void NetworkManager::print_networks(){
 
   }
 
-
-  /**
-   * @brief prints wifi connection problems
-   * 
-   */
   void NetworkManager::print_wifi_status() {
     switch (WiFi.status()) {
       case WL_IDLE_STATUS:     Serial.println("Status: IDLE (Changing states)"); break;

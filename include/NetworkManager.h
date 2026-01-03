@@ -1,14 +1,17 @@
+#ifndef NETWORK_MANAGER_H
+#define NETWORK_MANAGER_H
 #include <WiFi.h>
 
 
+
 class NetworkManager{
-    private:
+    
+  private:
     String ssid;
     String password;
 
     public:
-    NetworkManager(String ssid, String password);
-    
+    NetworkManager(String ssid, String password);   
   /**
    * @brief connects to a given wifi network
    * 
@@ -18,7 +21,6 @@ class NetworkManager{
    * @return false if couldn't connect
    */
     bool connect_to_wifi();
-
 
     /**
    * @brief scane for available networks and 
@@ -34,3 +36,4 @@ class NetworkManager{
     
 };
 
+#endif
