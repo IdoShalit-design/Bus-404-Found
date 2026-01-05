@@ -1,0 +1,688 @@
+{
+    "errors": null,
+    "timestamp": "2026-01-03T21:53:59+02:00",
+    "visits": {
+        "1570": [
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:53:16+02:00",
+                "stop_code": "1570",
+                "line_id": "31831",
+                "route_id": "31831",
+                "direction_id": "1",
+                "line_name": "78",
+                "operator_id": "16",
+                "destination_id": "800",
+                "vehicle_ref": "82091203",
+                "eta": "2026-01-03 21:54:00+02:00",
+                "trip_id": "584708714_030126",
+                "status": null,
+                "departed": "2026-01-03 21:30:00+02:00",
+                "location": {
+                    "lat": "31.778453",
+                    "lon": "35.215866"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "800",
+                            "name": {
+                                "AR": "بنايات هَؤوما/هنَسي هشيشي",
+                                "EN": "ICC Jerusalem/HaNassi HaShishi",
+                                "HE": "בנייני האומה/הנשיא השישי"
+                            },
+                            "address": {
+                                "street": "שדרות הנשיא השישי",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.78634,
+                                "lon": 35.203701
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "סופרבוס",
+                                "EN": "Superbus"
+                            },
+                            "url": "http://www.superbus.co.il"
+                        },
+                        "headsign": {
+                            "AR": "بنايات هَؤوما",
+                            "EN": "Binyanei HaUma ICC",
+                            "HE": "בנייני האומה"
+                        }
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:53:01+02:00",
+                "stop_code": "1570",
+                "line_id": "30728",
+                "route_id": "30728",
+                "direction_id": "1",
+                "line_name": "75",
+                "operator_id": "16",
+                "destination_id": "3512",
+                "vehicle_ref": "44985602",
+                "eta": "2026-01-03 22:02:00+02:00",
+                "trip_id": "584633707_030126",
+                "status": null,
+                "departed": "2026-01-03 21:30:00+02:00",
+                "location": {
+                    "lat": "31.76056",
+                    "lon": "35.224319"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "3512",
+                            "name": {
+                                "AR": "محطَّة هار نوف/بيت هدفوس",
+                                "EN": "Har Nof Terminal/Beit Hadfus",
+                                "HE": "מסוף הר נוף/בית הדפוס"
+                            },
+                            "address": {
+                                "street": "בית הדפוס",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.786571,
+                                "lon": 35.180236
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "סופרבוס",
+                                "EN": "Superbus"
+                            },
+                            "url": "http://www.superbus.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:53:14+02:00",
+                "stop_code": "1570",
+                "line_id": "10804",
+                "route_id": "10804",
+                "direction_id": "2",
+                "line_name": "19",
+                "operator_id": "3",
+                "destination_id": "2326",
+                "vehicle_ref": "7833969",
+                "eta": "2026-01-03 22:03:00+02:00",
+                "trip_id": "8414446_030126",
+                "status": null,
+                "departed": "2026-01-03 21:45:00+02:00",
+                "location": {
+                    "lat": "31.793894",
+                    "lon": "35.226707"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "2326",
+                            "name": {
+                                "AR": "مدخل رئيسي/ هداسا عين كارم",
+                                "EN": "Main Entry/Hadassah Ein Kerem",
+                                "HE": "כניסה ראשית/הדסה עין כרם"
+                            },
+                            "address": {
+                                "street": "",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.766346,
+                                "lon": 35.148811
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:50:37+02:00",
+                "stop_code": "1570",
+                "line_id": "10399",
+                "route_id": "10399",
+                "direction_id": "2",
+                "line_name": "17",
+                "operator_id": "3",
+                "destination_id": "3005",
+                "vehicle_ref": "7783769",
+                "eta": "2026-01-03 22:06:00+02:00",
+                "trip_id": "6639646_030126",
+                "status": null,
+                "departed": "2026-01-03 21:45:00+02:00",
+                "location": {
+                    "lat": "31.793341",
+                    "lon": "35.234364"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "3005",
+                            "name": {
+                                "AR": "دولتشين/بن فورت",
+                                "EN": "Dulzin/Ben Porat",
+                                "HE": "דולצ'ין/בן פורת"
+                            },
+                            "address": {
+                                "street": "אריה דולצ'ין",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.751288,
+                                "lon": 35.16778
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:53:36+02:00",
+                "stop_code": "1570",
+                "line_id": "31831",
+                "route_id": "31831",
+                "direction_id": "1",
+                "line_name": "78",
+                "operator_id": "16",
+                "destination_id": "800",
+                "vehicle_ref": "82091403",
+                "eta": "2026-01-03 22:07:00+02:00",
+                "trip_id": "585353218_030126",
+                "status": null,
+                "departed": "2026-01-03 21:45:00+02:00",
+                "location": {
+                    "lat": "31.752222",
+                    "lon": "35.227718"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "800",
+                            "name": {
+                                "AR": "بنايات هَؤوما/هنَسي هشيشي",
+                                "EN": "ICC Jerusalem/HaNassi HaShishi",
+                                "HE": "בנייני האומה/הנשיא השישי"
+                            },
+                            "address": {
+                                "street": "שדרות הנשיא השישי",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.78634,
+                                "lon": 35.203701
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "סופרבוס",
+                                "EN": "Superbus"
+                            },
+                            "url": "http://www.superbus.co.il"
+                        },
+                        "headsign": {
+                            "AR": "بنايات هَؤوما",
+                            "EN": "Binyanei HaUma ICC",
+                            "HE": "בנייני האומה"
+                        }
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:53:14+02:00",
+                "stop_code": "1570",
+                "line_id": "10394",
+                "route_id": "10394",
+                "direction_id": "1",
+                "line_name": "7",
+                "operator_id": "3",
+                "destination_id": "1953",
+                "vehicle_ref": "7774269",
+                "eta": "2026-01-03 22:08:00+02:00",
+                "trip_id": "35589876_030126",
+                "status": null,
+                "departed": "2026-01-03 21:50:00+02:00",
+                "location": {
+                    "lat": "31.745836",
+                    "lon": "35.221561"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "1953",
+                            "name": {
+                                "AR": "كامبوس سفيرا / محطة قرية الهايتيك",
+                                "EN": "Safra Campus/High Tech Village Terminal",
+                                "HE": "קמפוס ספרא/מסוף כפר ההייטק"
+                            },
+                            "address": {
+                                "street": "פרופסור רקח",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.767764,
+                                "lon": 35.198375
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": {
+                            "HE": "ירושלים_גבעת רם"
+                        }
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 13:15:30+02:00",
+                "stop_code": "1570",
+                "line_id": "10394",
+                "route_id": "10394",
+                "direction_id": "1",
+                "line_name": "7",
+                "operator_id": "3",
+                "destination_id": "1953",
+                "vehicle_ref": "7801069",
+                "eta": "2026-01-03 22:10:00+02:00",
+                "trip_id": "35589876_030126",
+                "status": null,
+                "departed": "2026-01-03 21:50:00+02:00",
+                "location": null,
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "1953",
+                            "name": {
+                                "AR": "كامبوس سفيرا / محطة قرية الهايتيك",
+                                "EN": "Safra Campus/High Tech Village Terminal",
+                                "HE": "קמפוס ספרא/מסוף כפר ההייטק"
+                            },
+                            "address": {
+                                "street": "פרופסור רקח",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.767764,
+                                "lon": 35.198375
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": {
+                            "HE": "ירושלים_גבעת רם"
+                        }
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:53:18+02:00",
+                "stop_code": "1570",
+                "line_id": "11107",
+                "route_id": "11107",
+                "direction_id": "1",
+                "line_name": "9",
+                "operator_id": "3",
+                "destination_id": "3144",
+                "vehicle_ref": "7809569",
+                "eta": "2026-01-03 22:10:00+02:00",
+                "trip_id": "30497528_030126",
+                "status": null,
+                "departed": "2026-01-03 21:10:00+02:00",
+                "location": {
+                    "lat": "31.79908",
+                    "lon": "35.207256"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "3144",
+                            "name": {
+                                "AR": "مصف محطة المالحة/ تنزيل",
+                                "EN": "Malha Train Parking/Disembark",
+                                "HE": "חניון רכבת מלחה/הורדה"
+                            },
+                            "address": {
+                                "street": "דרך יצחק מודעי",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.748571,
+                                "lon": 35.186397
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": {
+                            "AR": "المالحة",
+                            "EN": "Malha",
+                            "HE": "מלחה"
+                        }
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:53:09+02:00",
+                "stop_code": "1570",
+                "line_id": "11107",
+                "route_id": "11107",
+                "direction_id": "1",
+                "line_name": "9",
+                "operator_id": "3",
+                "destination_id": "3144",
+                "vehicle_ref": "7793169",
+                "eta": "2026-01-03 22:15:00+02:00",
+                "trip_id": "11974642_030126",
+                "status": null,
+                "departed": "2026-01-03 21:30:00+02:00",
+                "location": {
+                    "lat": "31.793449",
+                    "lon": "35.201965"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "3144",
+                            "name": {
+                                "AR": "مصف محطة المالحة/ تنزيل",
+                                "EN": "Malha Train Parking/Disembark",
+                                "HE": "חניון רכבת מלחה/הורדה"
+                            },
+                            "address": {
+                                "street": "דרך יצחק מודעי",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.748571,
+                                "lon": 35.186397
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": {
+                            "AR": "المالحة",
+                            "EN": "Malha",
+                            "HE": "מלחה"
+                        }
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 21:53:36+02:00",
+                "stop_code": "1570",
+                "line_id": "30728",
+                "route_id": "30728",
+                "direction_id": "1",
+                "line_name": "75",
+                "operator_id": "16",
+                "destination_id": "3512",
+                "vehicle_ref": "44983402",
+                "eta": "2026-01-03 22:15:00+02:00",
+                "trip_id": "584640760_030126",
+                "status": null,
+                "departed": "2026-01-03 21:45:00+02:00",
+                "location": {
+                    "lat": "31.721988",
+                    "lon": "35.230072"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "3512",
+                            "name": {
+                                "AR": "محطَّة هار نوف/بيت هدفوس",
+                                "EN": "Har Nof Terminal/Beit Hadfus",
+                                "HE": "מסוף הר נוף/בית הדפוס"
+                            },
+                            "address": {
+                                "street": "בית הדפוס",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.786571,
+                                "lon": 35.180236
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "סופרבוס",
+                                "EN": "Superbus"
+                            },
+                            "url": "http://www.superbus.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 04:01:39+02:00",
+                "stop_code": "1570",
+                "line_id": "30728",
+                "route_id": "30728",
+                "direction_id": "1",
+                "line_name": "75",
+                "operator_id": "16",
+                "destination_id": "3512",
+                "vehicle_ref": "44982302",
+                "eta": "2026-01-03 22:17:00+02:00",
+                "trip_id": "584640760_030126",
+                "status": null,
+                "departed": "2026-01-03 21:45:00+02:00",
+                "location": null,
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "3512",
+                            "name": {
+                                "AR": "محطَّة هار نوف/بيت هدفوس",
+                                "EN": "Har Nof Terminal/Beit Hadfus",
+                                "HE": "מסוף הר נוף/בית הדפוס"
+                            },
+                            "address": {
+                                "street": "בית הדפוס",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.786571,
+                                "lon": 35.180236
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "סופרבוס",
+                                "EN": "Superbus"
+                            },
+                            "url": "http://www.superbus.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-01-03 04:01:37+02:00",
+                "stop_code": "1570",
+                "line_id": "31831",
+                "route_id": "31831",
+                "direction_id": "1",
+                "line_name": "78",
+                "operator_id": "16",
+                "destination_id": "800",
+                "vehicle_ref": "82090603",
+                "eta": "2026-01-03 22:23:00+02:00",
+                "trip_id": "584708715_030126",
+                "status": null,
+                "departed": "2026-01-03 22:00:00+02:00",
+                "location": null,
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "800",
+                            "name": {
+                                "AR": "بنايات هَؤوما/هنَسي هشيشي",
+                                "EN": "ICC Jerusalem/HaNassi HaShishi",
+                                "HE": "בנייני האומה/הנשיא השישי"
+                            },
+                            "address": {
+                                "street": "שדרות הנשיא השישי",
+                                "city": "Jerusalem",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ירושלים",
+                                    "EN": "Jerusalem"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.78634,
+                                "lon": 35.203701
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "סופרבוס",
+                                "EN": "Superbus"
+                            },
+                            "url": "http://www.superbus.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            }
+        ]
+    },
+    "stop_info": {
+        "name": {
+            "AR": "بتسلال/ترومبلدور",
+            "EN": "Bezalel/Trumpeldor",
+            "HE": "בצלאל/טרומפלדור"
+        },
+        "address": {
+            "street": "בצלאל 16",
+            "city": "Jerusalem",
+            "platform": "",
+            "floor": "",
+            "city_multilingual": {
+                "HE": "ירושלים",
+                "EN": "Jerusalem"
+            }
+        },
+        "location": {
+            "lat": 31.780872,
+            "lon": 35.213538
+        }
+    }
+}
