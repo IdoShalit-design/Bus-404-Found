@@ -40,8 +40,6 @@ void setup() {
   Serial.println("The time now is:");
   Serial.println(time_manager.get_formatted_time());
 
-  Serial.println(time_manager.get_minutes_until("22:10"));
-
 
   
 
