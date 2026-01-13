@@ -15,16 +15,16 @@ classDiagram
         }
         class WifiCredentials {
             <<struct>>
-            +const char* ssid
-            +const char* password
+            +string ssid
+            +string password
             +WifiCredentials(s, p)
         }
     }
 
     namespace System_Module {
         class TimeManager {
-            -const char* _timezone
-            -const char* _ntpServer
+            -string _timezone
+            -string _ntpServer
             +TimeManager(tz)
             +init_and_sync() void
             +is_time_set() bool
@@ -36,8 +36,8 @@ classDiagram
     namespace Data_Fetching_Module {
         class IBusFetcher {
             <<interface>>
-            +update(BusTarget bus) FetchResult*
-            +getName() const char**
+            +update(BusTarget bus) FetchResult
+            +getName() string
         }
         class FetchResult {
             <<struct>>
@@ -46,28 +46,28 @@ classDiagram
             +String errorMessage
         }
         class CurlbusFetcher {
-            -const char* _apiBase
+            -string _apiBase
             +update(BusTarget bus) FetchResult
-            +getName() const char*
+            +getName() string
         }
         class MockFetcher {
             +update(BusTarget bus) FetchResult
-            +getName() const char*
+            +getName() string
         }
         class GovIlFetcher {
             <<Future>>
             +update(BusTarget bus) FetchResult
-            +getName() const char*
+            +getName() string
         }
     }
 
     namespace Data_Logic_Module {
         class TransitClient {
-            -IBusFetcher* _fetcher
-            -BusTarget* _targets
+            -IBusFetcher _fetcher
+            -BusTarget _targets
             -size_t _targetCount
-            -unsigned long _lastFetchTime
-            -unsigned long _fetchInterval
+            -ulong _lastFetchTime
+            -ulong _fetchInterval
             +TransitClient(fetcher, targets, count)
             +setFetchInterval(ms) void
             +fetchAll() void
@@ -75,12 +75,12 @@ classDiagram
         }
         class BusTarget {
             <<struct>>
-            +const char* stationId
-            +const char* line
+            +string stationId
+            +string line
             +String eta
             +int minutesRemaining
             +bool isValid
-            +unsigned long lastUpdate
+            +ulong lastUpdate
         }
     }
 
@@ -106,7 +106,7 @@ classDiagram
 
     %% Dependencies
     NetworkManager ..> WifiCredentials : uses
-    TransitClient --> IBusFetcher : uses (DI)
+    TransitClient --> IBusFetcher : uses DI
     TransitClient o-- BusTarget : manages array
     CurlbusFetcher ..> BusTarget : updates
     MockFetcher ..> BusTarget : updates
