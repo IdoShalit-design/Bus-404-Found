@@ -7,9 +7,9 @@ struct BusTarget {
     const char* stationId;      // Station ID
     const char* line;           // Line number
     
-
     char last_known_ETA[6];     // "HH:MM" format
     int minutes_remaining;      // Numeric value for logic
+    bool is_realtime;           // true if bus has live GPS tracking
 };
 
 #endif

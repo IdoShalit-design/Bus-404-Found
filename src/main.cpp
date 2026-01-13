@@ -1,52 +1,110 @@
 #include <Arduino.h>
 #include "Network/NetworkManager.h"
+#include "Network/IBusFetcher.h"
+#include "Network/CurlBusFetcher.h"
 #include "Config.h"
 #include "TimeManager.h"
 
-// Global pointer to the NetworkManager instance
+// =========================================
+// Global instances
+// =========================================
 NetworkManager* network_manager = nullptr;
 TimeManager time_manager(TIME_ZONE);
+
+// Generic fetcher pointer - concrete type determined by FETCHER_TYPE in Config.h
+IBusFetcher* bus_fetcher = nullptr;
+
+// Mutable copy of bus targets (original is const)
+BusTarget bus_targets[TARGETS_COUNT];
+
+// Update interval (milliseconds)
+const unsigned long FETCH_INTERVAL = 30000;  // 30 seconds
+unsigned long last_fetch_time = 0;
+
+/**
+ * @brief Creates the appropriate IBusFetcher based on FETCHER_TYPE config.
+ * @return Pointer to concrete IBusFetcher implementation.
+ */
+IBusFetcher* createFetcher() {
+    #if FETCHER_TYPE == FETCHER_CURLBUS
+        Serial.println("[Main] Using CurlbusFetcher");
+        return new CurlbusFetcher();
+    // Future fetcher types:
+    // #elif FETCHER_TYPE == FETCHER_GOVIL
+    //     return new GovIlFetcher();
+    // #elif FETCHER_TYPE == FETCHER_MOCK
+    //     return new MockFetcher();
+    #else
+        Serial.println("[Main] Unknown FETCHER_TYPE, defaulting to CurlbusFetcher");
+        return new CurlbusFetcher();
+    #endif
+}
 
 void setup() {
   // Initialize serial for output
   Serial.begin(115200);
 
-  // 1. Create a credentials object from the Config defines
+  // =========================================
+  // 1. Initialize WiFi
+  // =========================================
   WifiCredentials credentials(WIFI_SSID, WIFI_PASS);
-
-  // 2. Initialize the NetworkManager using the 'new' keyword as requested
-  // We pass the credentials object to the constructor
   network_manager = new NetworkManager(credentials);
 
-  // Scan and print available networks
   network_manager->print_networks();
 
-  // Attempt to connect to WiFi
   bool connected = network_manager->connect_to_wifi();
-
-  // Output connection result
   if (connected) {
     Serial.printf("Successfully connected to %s\n", WIFI_SSID);
   } else {
     Serial.printf("Failed to connect to %s\n", WIFI_SSID);
   }
-  
-  // Print detailed connection status
   network_manager->print_wifi_status();
 
-
-  // syncronize clock
+  // =========================================
+  // 2. Synchronize clock
+  // =========================================
   time_manager.init_and_sync();
   Serial.println("The time now is:");
   Serial.println(time_manager.get_formatted_time());
 
+  // =========================================
+  // 3. Initialize bus fetcher
+  // =========================================
+  bus_fetcher = createFetcher();
 
-  
+  // Copy const targets to mutable array
+  for (int i = 0; i < TARGETS_COUNT; i++) {
+    bus_targets[i] = MY_TARGETS[i];
+  }
 
-  
-
+  Serial.printf("[Main] Tracking %d bus targets\n", TARGETS_COUNT);
 }
 
 void loop() {
-  // Main execution loop
+  // =========================================
+  // Periodic bus data fetch
+  // =========================================
+  unsigned long now = millis();
+  
+  if (now - last_fetch_time >= FETCH_INTERVAL || last_fetch_time == 0) {
+    last_fetch_time = now;
+    
+    Serial.println("\n--- Fetching bus arrivals ---");
+    Serial.println(time_manager.get_formatted_time());
+    
+    for (int i = 0; i < TARGETS_COUNT; i++) {
+      bool success = bus_fetcher->update(bus_targets[i]);
+      
+      if (success) {
+        Serial.printf("Line %s: %s (%d min) %s\n", 
+                      bus_targets[i].line,
+                      bus_targets[i].last_known_ETA,
+                      bus_targets[i].minutes_remaining,
+                      bus_targets[i].is_realtime ? "[LIVE]" : "[SCHED]");
+      } else {
+        Serial.printf("Line %s: No data\n", bus_targets[i].line);
+      }
+    }
+    Serial.println("-----------------------------");
+  }
 }
