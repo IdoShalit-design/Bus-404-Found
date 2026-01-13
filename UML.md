@@ -5,24 +5,43 @@ title: Bus-404-Found Architecture
 classDiagram
     direction TB
 
-    namespace Network_Module {
-        class NetworkManager {
-            -WifiCredentials _credentials
-            +NetworkManager(creds)
-            +connect_to_wifi() bool
-            +print_networks() void
-            +print_wifi_status() void
-        }
-        class WifiCredentials {
-            <<struct>>
-            +string ssid
-            +string password
-            +WifiCredentials(s, p)
+    %% ============================================
+    %% src/ - Main Application Entry Point
+    %% ============================================
+    namespace src {
+        class Main {
+            <<main.cpp>>
+            +setup() void
+            +loop() void
         }
     }
 
-    namespace System_Module {
+    %% ============================================
+    %% include/ - Root Level Headers
+    %% ============================================
+    namespace include {
+        class BusTarget {
+            <<BusType.h>>
+            +string stationId
+            +string line
+            +String eta
+            +int minutesRemaining
+            +bool isValid
+            +ulong lastUpdate
+        }
+        class FetchResult {
+            <<BusType.h>>
+            +bool success
+            +int errorCode
+            +String errorMessage
+        }
+        class WifiCredentials {
+            <<Config.h>>
+            +string ssid
+            +string password
+        }
         class TimeManager {
+            <<TimeManager.h>>
             -string _timezone
             -string _ntpServer
             +TimeManager(tz)
@@ -33,36 +52,31 @@ classDiagram
         }
     }
 
-    namespace Data_Fetching_Module {
+    %% ============================================
+    %% include/Network/ - Network Module Headers
+    %% ============================================
+    namespace include_Network {
+        class NetworkManager {
+            <<NetworkManager.h>>
+            -WifiCredentials _credentials
+            +NetworkManager(creds)
+            +connect_to_wifi() bool
+            +print_networks() void
+            +print_wifi_status() void
+        }
         class IBusFetcher {
-            <<interface>>
+            <<IBusFetcher.h>>
             +update(BusTarget bus) FetchResult
             +getName() string
         }
-        class FetchResult {
-            <<struct>>
-            +bool success
-            +int errorCode
-            +String errorMessage
-        }
         class CurlbusFetcher {
+            <<CurlBusFetcher.h>>
             -string _apiBase
             +update(BusTarget bus) FetchResult
             +getName() string
         }
-        class MockFetcher {
-            +update(BusTarget bus) FetchResult
-            +getName() string
-        }
-        class GovIlFetcher {
-            <<Future>>
-            +update(BusTarget bus) FetchResult
-            +getName() string
-        }
-    }
-
-    namespace Data_Logic_Module {
         class TransitClient {
+            <<TransitClient.h>>
             -IBusFetcher _fetcher
             -BusTarget _targets
             -size_t _targetCount
@@ -73,30 +87,26 @@ classDiagram
             +fetchAll() void
             +shouldFetch() bool
         }
-        class BusTarget {
-            <<struct>>
-            +string stationId
-            +string line
-            +String eta
-            +int minutesRemaining
-            +bool isValid
-            +ulong lastUpdate
-        }
     }
 
-    namespace Display_Module {
+    %% ============================================
+    %% Future Modules
+    %% ============================================
+    namespace Future {
+        class MockFetcher {
+            <<Testing>>
+            +update(BusTarget bus) FetchResult
+            +getName() string
+        }
+        class GovIlFetcher {
+            <<Alternative API>>
+            +update(BusTarget bus) FetchResult
+            +getName() string
+        }
         class DisplayManager {
-            <<Future>>
+            <<LED Display>>
             +init() void
             +render() void
-        }
-    }
-
-    namespace Arduino_Main {
-        class Main {
-            <<Arduino>>
-            +setup() void
-            +loop() void
         }
     }
 
