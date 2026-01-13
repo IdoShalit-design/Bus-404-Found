@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# Private credentials (DO NOT COMMIT)
+include/Credentials.h
+
 # Compiled Object files
 *.slo
 *.lo
