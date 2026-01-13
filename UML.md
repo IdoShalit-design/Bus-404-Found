@@ -92,6 +92,14 @@ classDiagram
         }
     }
 
+    namespace Arduino_Main {
+        class Main {
+            <<Arduino>>
+            +setup() void
+            +loop() void
+        }
+    }
+
     %% Interface implementations (Strategy Pattern)
     IBusFetcher <|.. CurlbusFetcher : implements
     IBusFetcher <|.. MockFetcher : implements
