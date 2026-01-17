@@ -5,10 +5,11 @@
 #include "Config.h"
 #include "TimeManager.h"
 
+#define FETCH_INTERVAL 30000  // 30 seconds
+
 // =========================================
 // Global instances
 // =========================================
-NetworkManager* network_manager = nullptr;
 TimeManager time_manager(TIME_ZONE);
 
 // Generic fetcher pointer - concrete type determined by FETCHER_TYPE in Config.h
@@ -18,7 +19,6 @@ IBusFetcher* bus_fetcher = nullptr;
 BusTarget bus_targets[TARGETS_COUNT];
 
 // Update interval (milliseconds)
-const unsigned long FETCH_INTERVAL = 30000;  // 30 seconds
 unsigned long last_fetch_time = 0;
 
 /**
@@ -47,18 +47,18 @@ void setup() {
   // =========================================
   // 1. Initialize WiFi
   // =========================================
-  WifiCredentials credentials(WIFI_SSID, WIFI_PASS);
-  network_manager = new NetworkManager(credentials);
+  WifiCredentials credentials(WIFI_CREDENTIALS.ssid, WIFI_CREDENTIALS.password);
+  NetworkManager network_manager(credentials);
 
-  network_manager->print_networks();
+  network_manager.print_networks();
 
-  bool connected = network_manager->connect_to_wifi();
+  bool connected = network_manager.connect_to_wifi();
   if (connected) {
-    Serial.printf("Successfully connected to %s\n", WIFI_SSID);
+    Serial.printf("Successfully connected to %s\n", WIFI_CREDENTIALS.ssid);
   } else {
-    Serial.printf("Failed to connect to %s\n", WIFI_SSID);
+    Serial.printf("Failed to connect to %s\n", WIFI_CREDENTIALS.ssid);
   }
-  network_manager->print_wifi_status();
+  network_manager.print_wifi_status();
 
   // =========================================
   // 2. Synchronize clock

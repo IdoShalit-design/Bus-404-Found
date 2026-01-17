@@ -3,33 +3,33 @@
 
 #include "IBusFetcher.h"
 
-// Note: We don't need the full implementation libraries here if we use pointers,
-// but since we don't use pointers for members, we still keep headers usually unless heavily optimized.
 #include <HTTPClient.h> 
 #include <ArduinoJson.h>
 
-#define CURLBUS_API_URL "https://curlbus.app/"
 
-/**
- * @brief Buffer size for JSON parsing.
- * With stream filtering (only line_name + eta fields), we only need ~2KB
- * instead of the full ~28KB response.
- */
+#define CURLBUS_API_URL "https://curlbus.app/"
 #define CURLBUS_JSON_BUFFER_SIZE 8192
+
+#define CURLBUS_URL_BUFFER_SIZE 64
+#define CURLBUS_PAYLOAD_BUFFER_SIZE 2048
 
 class CurlbusFetcher : public IBusFetcher {
 private:
-    /**
-     * @brief Pre-allocated JSON document buffer.
-     * Allocated once in constructor to avoid heap fragmentation from
-     * repeated allocations during each API call.
-     */
+
+    // Pre-allocated JSON document buffer.
     DynamicJsonDocument* _doc;
 
+    // Pre-allocated buffer for building request URL.
+    char _url[CURLBUS_URL_BUFFER_SIZE];
+
+    // Pre-allocated buffer for HTTP response payload.
+    
+    char _payload[CURLBUS_PAYLOAD_BUFFER_SIZE];
+
 public:
-    /**
-     * @brief Constructor - allocates JSON buffer once.
-     */
+
+    // Constructor - allocates JSON buffer once.
+
     CurlbusFetcher();
 
     /**

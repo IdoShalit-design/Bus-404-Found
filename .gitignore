@@ -1,8 +1,8 @@
 # Prerequisites
 *.d
 
-# Private credentials (DO NOT COMMIT)
-include/Credentials.h
+# Private secrets (DO NOT COMMIT)
+include/Secrets.h
 
 # Compiled Object files
 *.slo
