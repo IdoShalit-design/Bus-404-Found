@@ -90,6 +90,30 @@ classDiagram
     }
 
     %% ============================================
+    %% include/Display/ - Display Module Headers
+    %% ============================================
+    namespace include_Display {
+        class IRenderer {
+            <<IRenderer.h>>
+            +init() bool
+            +render(BusTarget* targets, int count) void
+            +clear() void
+            +setBrightness(uint8_t) void
+        }
+        class HUB75Display {
+            <<HUB75Display.h>>
+            -MatrixPanel_I2S_DMA* _matrix
+            +HUB75Display()
+            +~HUB75Display()
+            +init() bool
+            +render(BusTarget* targets, int count) void
+            +clear() void
+            +setBrightness(uint8_t) void
+            -drawBusRow(BusTarget target, int row) void
+        }
+    }
+
+    %% ============================================
     %% Future Modules
     %% ============================================
     namespace Future {
@@ -102,11 +126,6 @@ classDiagram
             <<Alternative API>>
             +update(BusTarget bus) FetchResult
             +getName() string
-        }
-        class DisplayManager {
-            <<LED Display>>
-            +init() void
-            +render() void
         }
     }
 
@@ -121,6 +140,8 @@ classDiagram
     Main --> TimeManager : owns
     Main --> TransitClient : owns
     Main --> IBusFetcher : creates concrete
+    Main --> IRenderer : uses
+    HUB75Display ..|> IRenderer : implements
 
     %% Dependencies
     NetworkManager ..> WifiCredentials : uses
@@ -128,3 +149,4 @@ classDiagram
     TransitClient o-- BusTarget : manages array
     CurlbusFetcher ..> BusTarget : updates
     MockFetcher ..> BusTarget : updates
+    HUB75Display ..> BusTarget : renders

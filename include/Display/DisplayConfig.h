@@ -17,23 +17,27 @@
 #define DISPLAY_HEIGHT PANEL_HEIGHT                  // 32
 
 // --- HUB75 Pinout Definitions ---
-#define R1_PIN  18
-#define G1_PIN  25
-#define B1_PIN  05
-#define R2_PIN  17
-#define G2_PIN  33
-#define B2_PIN  16
+// Using ESP32-HUB75-MatrixPanel-DMA library default pins
+// These are the RECOMMENDED pins from the library documentation
+// If using a different adapter board, update these to match your wiring!
 
-#define A_PIN   04
-#define B_PIN   16
-#define C_PIN   00
-#define D_PIN   20
-#define E_PIN   32   // For 64x64 panels only, -1 if not used
+#define R1_PIN  25
+#define G1_PIN  26
+#define B1_PIN  27
+#define R2_PIN  14
+#define G2_PIN  12
+#define B2_PIN  13
+
+#define A_PIN   23
+#define B_PIN   19
+#define C_PIN   05
+#define D_PIN   17
+#define E_PIN   -1   // -1 for 64x32 panels (1/16 scan). Use valid GPIO for 64x64 (1/32 scan)
 
 // Control Pins:
-#define LAT_PIN 19
+#define LAT_PIN 04
 #define OE_PIN  15
-#define CLK_PIN 02
+#define CLK_PIN 16
 
 // --- Display Settings ---
 #define DISPLAY_BRIGHTNESS 128  // 0-255

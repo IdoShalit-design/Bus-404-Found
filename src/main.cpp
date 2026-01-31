@@ -2,6 +2,8 @@
 #include "Network/NetworkManager.h"
 #include "Network/IBusFetcher.h"
 #include "Network/CurlBusFetcher.h"
+#include "Display/IRenderer.h"
+#include "Display/HUB75Display.h"
 #include "Config.h"
 #include "TimeManager.h"
 
@@ -11,6 +13,9 @@
 // Global instances
 // =========================================
 TimeManager time_manager(TIME_ZONE);
+
+// Display renderer
+IRenderer* renderer = nullptr;
 
 // Generic fetcher pointer - concrete type determined by FETCHER_TYPE in Config.h
 IBusFetcher* bus_fetcher = nullptr;
@@ -72,6 +77,16 @@ void setup() {
   // =========================================
   bus_fetcher = createFetcher();
 
+  // =========================================
+  // 4. Initialize display
+  // =========================================
+  renderer = new HUB75Display();
+  if (!renderer->init()) {
+    Serial.println("[Main] Display initialization failed!");
+  } else {
+    Serial.println("[Main] Display initialized successfully");
+  }
+
   // Copy const targets to mutable array
   for (int i = 0; i < TARGETS_COUNT; i++) {
     bus_targets[i] = MY_TARGETS[i];
@@ -106,5 +121,10 @@ void loop() {
       }
     }
     Serial.println("-----------------------------");
+
+    // Update display with new data
+    if (renderer) {
+      renderer->render(bus_targets, TARGETS_COUNT);
+    }
   }
 }
