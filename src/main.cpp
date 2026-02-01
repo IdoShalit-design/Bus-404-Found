@@ -5,6 +5,7 @@
 #include "Display/IRenderer.h"
 #include "Display/HUB75Display.h"
 #include "Config.h"
+#include "Structs.h"
 #include "TimeManager.h"
 
 #define FETCH_INTERVAL 30000  // 30 seconds

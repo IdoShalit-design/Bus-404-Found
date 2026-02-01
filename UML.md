@@ -20,25 +20,16 @@ classDiagram
     %% include/ - Root Level Headers
     %% ============================================
     namespace include {
-        class BusTarget {
-            <<BusType.h>>
-            +string stationId
-            +string line
-            +String eta
-            +int minutesRemaining
-            +bool isValid
-            +ulong lastUpdate
+        class Structs {
+            <<Structs.h>>
+            +BusTarget
+            +WifiCredentialsData
         }
         class FetchResult {
             <<BusType.h>>
             +bool success
             +int errorCode
             +String errorMessage
-        }
-        class WifiCredentials {
-            <<Config.h>>
-            +string ssid
-            +string password
         }
         class TimeManager {
             <<TimeManager.h>>
@@ -144,7 +135,7 @@ classDiagram
     HUB75Display ..|> IRenderer : implements
 
     %% Dependencies
-    NetworkManager ..> WifiCredentials : uses
+    NetworkManager ..> WifiCredentialsData : uses
     TransitClient --> IBusFetcher : uses DI
     TransitClient o-- BusTarget : manages array
     CurlbusFetcher ..> BusTarget : updates

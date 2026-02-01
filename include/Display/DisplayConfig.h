@@ -30,12 +30,12 @@
 
 #define A_PIN   23
 #define B_PIN   19
-#define C_PIN   05
+#define C_PIN   5
 #define D_PIN   17
 #define E_PIN   -1   // -1 for 64x32 panels (1/16 scan). Use valid GPIO for 64x64 (1/32 scan)
 
 // Control Pins:
-#define LAT_PIN 04
+#define LAT_PIN 4
 #define OE_PIN  15
 #define CLK_PIN 16
 

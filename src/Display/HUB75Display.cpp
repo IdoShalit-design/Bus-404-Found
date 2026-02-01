@@ -7,6 +7,7 @@
  */
 
 #include "Display/HUB75Display.h"
+#include "Structs.h"
 
 // Row height for each bus entry (pixels)
 static const int ROW_HEIGHT = DISPLAY_HEIGHT / 3;  // 10px per row for 3 targets
