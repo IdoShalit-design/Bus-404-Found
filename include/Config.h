@@ -1,7 +1,7 @@
-#ifndef CONFIG_H
+﻿#ifndef CONFIG_H
 #define CONFIG_H
-#include "Credentials.h"  // WiFi credentials (not committed to git)
 #include "Structs.h"
+#include "Secrets.h"  // WiFi credentials (not committed to git)
 
 // --- TimeZone ---
 #define TIME_ZONE "IST-2IDT,M3.4.4/26,M10.5.0"

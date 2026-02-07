@@ -6,7 +6,7 @@
 #ifndef IBUS_FETCHER_H
 #define IBUS_FETCHER_H
 
-#include "BusType.h"
+#include "Structs.h"
 
 /**
  * @class IBusFetcher

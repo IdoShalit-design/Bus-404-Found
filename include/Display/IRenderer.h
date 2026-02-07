@@ -2,7 +2,7 @@
 #define IRENDERER_H
 
 #include <stdint.h>
-#include "BusType.h"
+#include "Structs.h"
 
 /**
  * @brief Abstract interface for rendering bus arrival data to a display.
