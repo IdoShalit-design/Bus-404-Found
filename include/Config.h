@@ -1,4 +1,4 @@
-﻿#ifndef CONFIG_H
+#ifndef CONFIG_H
 #define CONFIG_H
 #include "Structs.h"
 #include "Secrets.h"  // WiFi credentials (not committed to git)
