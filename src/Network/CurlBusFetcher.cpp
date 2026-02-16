@@ -23,9 +23,13 @@
  */
 CurlbusFetcher::CurlbusFetcher() 
     : _doc(new DynamicJsonDocument(CURLBUS_JSON_BUFFER_SIZE)) {
-    // Initialize buffers to empty strings
+    if (!_doc) {
+        Serial.println("[CurlbusFetcher] FATAL: Failed to allocate JSON buffer!");
+    }
     _url[0] = '\0';
-    _payload[0] = '\0';
+    // Skip HTTPS certificate verification (curlbus.app is a public API)
+    _secureClient.setInsecure();
+    _secureClient.setTimeout(10);  // 10 second timeout for TLS handshake
     #ifdef DEBUG
     Serial.printf("[CurlbusFetcher] Initialized with %d byte JSON buffer\n",
          CURLBUS_JSON_BUFFER_SIZE);
@@ -55,44 +59,54 @@ CurlbusFetcher::~CurlbusFetcher() {
  * @return false if HTTP request failed, parsing failed, or line not found.
  */
 bool CurlbusFetcher::update(BusTarget& bus) {
+    if (!_doc) {
+        Serial.println("[CurlbusFetcher] JSON buffer not allocated!");
+        return false;
+    }
+    
     HTTPClient http;
     
     // =========================================
-    // Step 1: Build and send HTTP request
+    // Step 1: Build and send HTTP request (with retry)
     // =========================================
-    snprintf(_url, sizeof(_url), "%s%s", CURLBUS_API_URL, bus.stationId);
+    snprintf(_url, sizeof(_url), "%s%s?format=json", CURLBUS_API_URL, bus.stationId);
     
-    http.begin(_url);
-    http.addHeader("Accept", "application/json");
-    
-    int httpCode = http.GET();
+    int httpCode = -1;
+    for (int attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) {
+            Serial.printf("[CurlbusFetcher] Retry %d for station %s\n", attempt, bus.stationId);
+            delay(500);  // Short delay before retry
+        }
+        
+        // Always ensure clean connection state
+        if (_secureClient.connected()) {
+            _secureClient.stop();
+        }
+        
+        http.begin(_secureClient, _url);
+        http.addHeader("Accept", "application/json");
+        http.setTimeout(10000);  // 10s timeout (was too long at 15s)
+        
+        httpCode = http.GET();
+        if (httpCode == HTTP_CODE_OK) break;
+        
+        http.end();
+    }
     
     // Check HTTP response status
     if (httpCode != HTTP_CODE_OK) {
-        #ifdef DEBUG
         Serial.printf("[CurlbusFetcher] HTTP GET failed, code: %d\n", httpCode);
-        #endif
         http.end();
+        _secureClient.stop();
         return false;
     }
-    
-    size_t len = http.getSize();
-    if (len > sizeof(_payload) - 1) {
-        #ifdef DEBUG
-        Serial.printf("[CurlbusFetcher] Payload too large: %d bytes\n", len);
-        #endif
-        http.end();
-        return false;
-    }
-    http.getStream().readBytes(_payload, len);
-    _payload[len] = '\0';
-    http.end();
     
     // =========================================
     // Step 2: Create filter to parse only needed fields
     // =========================================
     // Filter reduces memory by ignoring unwanted fields.
-    // Full response is ~28KB, filtered is ~2-4KB.
+    // Full response is ~28KB; the filter lets ArduinoJson discard
+    // unneeded data during streaming parse, so we never buffer it all.
     StaticJsonDocument<512> filter;
     filter["errors"] = true;
     filter["visits"][bus.stationId][0]["line_name"] = true;
@@ -100,30 +114,27 @@ bool CurlbusFetcher::update(BusTarget& bus) {
     filter["visits"][bus.stationId][0]["location"] = true;  // For real-time detection
     
     // =========================================
-    // Step 3: Parse JSON with filter
+    // Step 3: Parse JSON directly from HTTP stream (no buffering)
     // =========================================
-    // Clear the pre-allocated document before reuse
     _doc->clear();
     
     DeserializationError error = deserializeJson(
         *_doc, 
-        _payload,
+        http.getStream(),
         DeserializationOption::Filter(filter)
     );
     
+    http.end();
+    _secureClient.stop();  // Always close TLS after request to prevent stale connections
+    
     if (error) {
-        #ifdef DEBUG
         Serial.printf("[CurlbusFetcher] JSON parse failed: %s\n", error.c_str());
-        Serial.printf("[CurlbusFetcher] Payload size: %d bytes\n", strlen(_payload));
-        #endif
         return false;
     }
     
     // Check for API-level errors in response
     if (!(*_doc)["errors"].isNull() && (*_doc)["errors"].size() > 0) {
-        #ifdef DEBUG
         Serial.println("[CurlbusFetcher] API returned errors");
-        #endif
         return false;
     }
     
@@ -134,9 +145,7 @@ bool CurlbusFetcher::update(BusTarget& bus) {
     JsonArray visits = (*_doc)["visits"][bus.stationId];
     
     if (visits.isNull() || visits.size() == 0) {
-        #ifdef DEBUG
         Serial.printf("[CurlbusFetcher] No visits found for station %s\n", bus.stationId);
-        #endif
         return false;
     }
     
@@ -193,9 +202,7 @@ bool CurlbusFetcher::update(BusTarget& bus) {
     }
     
     // Line not found in any of the visits
-    #ifdef DEBUG
     Serial.printf("[CurlbusFetcher] Line %s not found at station %s\n", bus.line, bus.stationId);
-    #endif
     return false;
 }
 
