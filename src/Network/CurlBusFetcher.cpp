@@ -107,7 +107,7 @@ bool CurlbusFetcher::update(BusTarget& bus) {
     // Filter reduces memory by ignoring unwanted fields.
     // Full response is ~28KB; the filter lets ArduinoJson discard
     // unneeded data during streaming parse, so we never buffer it all.
-    StaticJsonDocument<512> filter;
+    StaticJsonDocument<768> filter;
     filter["errors"] = true;
     filter["visits"][bus.stationId][0]["line_name"] = true;
     filter["visits"][bus.stationId][0]["eta"] = true;
@@ -121,7 +121,8 @@ bool CurlbusFetcher::update(BusTarget& bus) {
     DeserializationError error = deserializeJson(
         *_doc, 
         http.getStream(),
-        DeserializationOption::Filter(filter)
+        DeserializationOption::Filter(filter),
+        DeserializationOption::NestingLimit(12)
     );
     
     http.end();

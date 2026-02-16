@@ -9,7 +9,7 @@
 
 
 #define CURLBUS_API_URL "https://curlbus.app/"
-#define CURLBUS_JSON_BUFFER_SIZE 12288
+#define CURLBUS_JSON_BUFFER_SIZE 16384
 
 #define CURLBUS_URL_BUFFER_SIZE 64
 
