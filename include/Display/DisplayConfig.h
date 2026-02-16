@@ -20,23 +20,23 @@
 // ESP32-S3 DevKitC-1 defaults from the library's esp32s3-default-pins.hpp.
 // If your wiring differs, update these to match your panel adapter.
 
-#define R1_PIN  4
-#define G1_PIN  5
-#define B1_PIN  6
-#define R2_PIN  7
-#define G2_PIN  15
-#define B2_PIN  16
+#define R1_PIN  37
+#define G1_PIN  06
+#define B1_PIN  36
+#define R2_PIN  35
+#define G2_PIN  05
+#define B2_PIN  0
 
-#define A_PIN   18
-#define B_PIN   8
-#define C_PIN   3
-#define D_PIN   42
-#define E_PIN   -1   // -1 for 64x32 panels (1/16 scan). Use valid GPIO for 64x64 (1/32 scan)
+#define A_PIN   45
+#define B_PIN   01
+#define C_PIN   48
+#define D_PIN   02
+#define E_PIN   04   // -1 for 64x32 panels (1/16 scan). Use valid GPIO for 64x64 (1/32 scan)
 
 // Control Pins:
-#define LAT_PIN 40
-#define OE_PIN  2
-#define CLK_PIN 41
+#define LAT_PIN 38
+#define OE_PIN  47
+#define CLK_PIN 21
 
 // --- Display Settings ---
 #define DISPLAY_BRIGHTNESS 128  // 0-255
