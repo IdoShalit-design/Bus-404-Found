@@ -102,8 +102,8 @@ void loop() {
   // =========================================
   unsigned long now = millis();
   
-  if (now - last_fetch_time >= FETCH_INTERVAL || last_fetch_time == 0) {
-    last_fetch_time = now;
+  if (last_fetch_time == 0 || (now - last_fetch_time >= FETCH_INTERVAL)) {
+    last_fetch_time = now ? now : 1;  // Avoid 0 to prevent re-trigger
     
     Serial.println("\n--- Fetching bus arrivals ---");
     Serial.println(time_manager.get_formatted_time());

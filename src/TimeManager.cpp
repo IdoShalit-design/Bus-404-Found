@@ -5,9 +5,22 @@ TimeManager::TimeManager(const char* tz) : _timezone(tz) {
 
 void TimeManager::init_and_sync() {
     // Standard ESP32 NTP sync
-    configTime(0, 0, _ntpServer);
-    setenv("TZ", _timezone, 1);
-    tzset();
+    configTzTime(_timezone, _ntpServer);
+
+    // Wait for NTP to actually sync (needed for HTTPS/TLS)
+    Serial.print("[TimeManager] Waiting for NTP sync");
+    struct tm timeinfo;
+    int retry = 0;
+    while (!getLocalTime(&timeinfo) && retry < 20) {
+        Serial.print(".");
+        delay(500);
+        retry++;
+    }
+    if (retry >= 20) {
+        Serial.println(" FAILED!");
+    } else {
+        Serial.println(" OK");
+    }
 }
 
 bool TimeManager::is_time_set() {
