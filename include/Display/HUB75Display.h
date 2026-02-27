@@ -56,6 +56,13 @@ public:
      * @param brightness Value from 0 (off) to 255 (max).
      */
     void setBrightness(uint8_t brightness) override;
+
+    /**
+     * @brief Runs a series of display tests for debugging.
+     * Tests: fill colors, pixel walk, text rendering, pin report.
+     * Blocks indefinitely (loops tests forever).
+     */
+    void screen_tests();
 };
 
 #endif

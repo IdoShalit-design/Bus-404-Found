@@ -10,35 +10,41 @@
 #define PANEL_HEIGHT  32
 
 // --- Number of panels chained ---
-#define PANEL_CHAIN   2    // Two matrices side-by-side = 128x32 total
+#define PANEL_CHAIN 1      // Two matrices side-by-side = 128x32 total
 
 // --- Total display resolution ---
 #define DISPLAY_WIDTH  (PANEL_WIDTH * PANEL_CHAIN)  // 128
 #define DISPLAY_HEIGHT PANEL_HEIGHT                  // 32
 
 // --- HUB75 Pinout Definitions ---
-// ESP32-S3 DevKitC-1 defaults from the library's esp32s3-default-pins.hpp.
-// If your wiring differs, update these to match your panel adapter.
 
-#define R1_PIN  4
-#define G1_PIN  5
-#define B1_PIN  6
-#define R2_PIN  7
-#define G2_PIN  15
-#define B2_PIN  16
+// #define R1_PIN 4
+// #define G1_PIN 5
+// #define B1_PIN 6
+// #define R2_PIN 7
+// #define G2_PIN 15
+// #define B2_PIN 16
 
-#define A_PIN   18
-#define B_PIN   8
-#define C_PIN   3
-#define D_PIN   42
-#define E_PIN   -1   // -1 for 64x32 panels (1/16 scan). Use valid GPIO for 64x64 (1/32 scan)
 
-// Control Pins:
-#define LAT_PIN 40
-#define OE_PIN  2
-#define CLK_PIN 41
+#define R1_PIN 6
+#define G1_PIN 5
+#define B1_PIN 4
 
-// --- Display Settings ---
+#define R2_PIN 16
+#define G2_PIN 15
+#define B2_PIN 7
+
+
+#define A_PIN 18
+#define B_PIN 13
+#define C_PIN 9
+#define D_PIN 10
+#define E_PIN -1  //--> required for 1/32 scan panels, safe to leave defined
+
+#define LAT_PIN 11
+#define OE_PIN 2
+#define CLK_PIN 12 //try also one of the clk-specialized pins !!
+
 #define DISPLAY_BRIGHTNESS 128  // 0-255
 
 // --- Color Definitions (RGB565) ---

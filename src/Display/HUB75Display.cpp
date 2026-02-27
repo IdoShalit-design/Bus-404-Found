@@ -30,44 +30,26 @@ HUB75Display::~HUB75Display() {
 // Public Methods
 // =========================================
 
+
 bool HUB75Display::init() {
-    // Configure HUB75 panel settings
-    HUB75_I2S_CFG::i2s_pins pins = {
-        R1_PIN, G1_PIN, B1_PIN,
-        R2_PIN, G2_PIN, B2_PIN,
-        A_PIN, B_PIN, C_PIN, D_PIN, E_PIN,
+    // הגדרת מבנה הפינים מראש
+    HUB75_I2S_CFG::i2s_pins _pins = {
+        R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN, 
+        A_PIN, B_PIN, C_PIN, D_PIN, E_PIN, 
         LAT_PIN, OE_PIN, CLK_PIN
     };
 
-    HUB75_I2S_CFG config(
-        PANEL_WIDTH,    // Panel width
-        PANEL_HEIGHT,   // Panel height
-        PANEL_CHAIN,    // Chain length
-        pins            // Pin mapping
+    HUB75_I2S_CFG mxconfig(
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        PANEL_CHAIN,
+        _pins 
     );
 
-    // Optional: Adjust for specific panel types
-    // config.driver = HUB75_I2S_CFG::FM6126A;  // Uncomment if using FM6126A driver chip
-    // config.clkphase = false;                  // Adjust clock phase if colors are wrong
-
-    _matrix = new MatrixPanel_I2S_DMA(config);
-
-    if (!_matrix->begin()) {
-        #ifdef DEBUG
-        Serial.println("[HUB75Display] Matrix initialization failed!");
-        #endif
-        return false;
-    }
-
-    _matrix->setBrightness8(DISPLAY_BRIGHTNESS);
-    _matrix->fillScreen(0);  // Clear display
-
-    #ifdef DEBUG
-    Serial.printf("[HUB75Display] Initialized %dx%d display (%d panels)\n",
-                  DISPLAY_WIDTH, DISPLAY_HEIGHT, PANEL_CHAIN);
-    #endif
-
-    return true;
+    mxconfig.i2sspeed = HUB75_I2S_CFG::HZ_10M; 
+    
+    _matrix = new MatrixPanel_I2S_DMA(mxconfig);
+    return _matrix->begin();
 }
 
 void HUB75Display::render(const BusTarget* targets, int count) {
@@ -91,6 +73,44 @@ void HUB75Display::clear() {
 void HUB75Display::setBrightness(uint8_t brightness) {
     if (_matrix) {
         _matrix->setBrightness8(brightness);
+    }
+}
+
+// =========================================
+// Screen Debug Tests
+// =========================================
+
+void HUB75Display::screen_tests() {
+    if (!_matrix) {
+        Serial.println("[ScreenTest] ERROR: Matrix not initialized!");
+        return;
+    }
+
+    Serial.println("[ScreenTest] Starting display tests (FM6126A driver)...");
+    Serial.printf("[ScreenTest] Display: %dx%d (%d panels)\n", DISPLAY_WIDTH, DISPLAY_HEIGHT, PANEL_CHAIN);
+
+    while (true) {
+        Serial.println("[ScreenTest] Test 1: Fill RED");
+        _matrix->fillScreenRGB888(255, 0, 0);
+        delay(3000);
+
+        Serial.println("[ScreenTest] Test 2: Fill GREEN");
+        _matrix->fillScreenRGB888(0, 255, 0);
+        delay(3000);
+
+        Serial.println("[ScreenTest] Test 3: Fill BLUE");
+        _matrix->fillScreenRGB888(0, 0, 255);
+        delay(3000);
+
+        Serial.println("[ScreenTest] Test 4: Fill WHITE");
+        _matrix->fillScreenRGB888(255, 255, 255);
+        delay(3000);
+
+        Serial.println("[ScreenTest] Test 5: Clear (BLACK)");
+        _matrix->clearScreen();
+        delay(2000);
+
+        Serial.println("[ScreenTest] === Looping ===");
     }
 }
 

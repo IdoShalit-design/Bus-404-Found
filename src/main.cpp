@@ -88,6 +88,13 @@ void setup() {
     Serial.println("[Main] Display initialized successfully");
   }
 
+  // If SCREEN_DEBUG is enabled, run display tests and never return
+  #if SCREEN_DEBUG
+    Serial.println("[Main] SCREEN_DEBUG enabled - running screen tests");
+    ((HUB75Display*)renderer)->screen_tests();
+    // screen_tests() never returns
+  #endif
+
   // Copy const targets to mutable array
   for (int i = 0; i < TARGETS_COUNT; i++) {
     bus_targets[i] = MY_TARGETS[i];
