@@ -4,7 +4,21 @@
 #include "Secrets.h"  // WiFi credentials (not committed to git)
 
 // --- Debug Flags ---
-#define SCREEN_DEBUG 0  // Set to 1 to run display tests instead of normal program
+#define SCREEN_DEBUG       0  // Set to 1 to run display color tests (blocks forever)
+#define DUMMY_BUSES_DEBUG  1  // Set to 1 to skip fetching and render dummy bus data
+
+// --- Dummy bus data (used when DUMMY_BUSES_DEBUG == 1) ---
+#if DUMMY_BUSES_DEBUG
+const BusTarget DUMMY_TARGETS[] = {
+    // Realtime, 5 minutes
+    {"0000", "7",  "Givat Ram",  true,  "12:05", 5},
+    // Realtime, arriving now (0 minutes)
+    {"0000", "19", "Ein Kerem",  true,  "12:00", 0},
+    // Scheduled (not realtime), 7 minutes
+    {"0000", "72", "Romema",     false, "12:07", 7},
+};
+const int DUMMY_TARGETS_COUNT = sizeof(DUMMY_TARGETS) / sizeof(DUMMY_TARGETS[0]);
+#endif
 
 // --- TimeZone ---
 #define TIME_ZONE "IST-2IDT,M3.4.4/26,M10.5.0"
@@ -19,9 +33,9 @@
 
 // --- Bus Targets ---
 const BusTarget MY_TARGETS[] = {
-    {"1570", "7", "", 0},   // Line 7 at Bezalel/Trumpeldor → Givat Ram
-    {"3541", "19", "", 0},  // Line 19 → Ein Kerem
-    {"6134", "72", "", 0}   // Line 72 → Romema
+    {"1570", "7",  "END LINE", false, "", 0},   // Line 7 at Bezalel/Trumpeldor → Givat Ram
+    {"3541", "19", "END LINE", false, "", 0},  // Line 19 → Ein Kerem
+    {"6134", "72", "END LINE", false, "", 0}   // Line 72 → Romema
 };
 
 const int TARGETS_COUNT = sizeof(MY_TARGETS) / sizeof(MY_TARGETS[0]);

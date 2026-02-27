@@ -50,6 +50,7 @@ void setup() {
   // Initialize serial for output
   Serial.begin(115200);
 
+  #if !DUMMY_BUSES_DEBUG
   // =========================================
   // 1. Initialize WiFi
   // =========================================
@@ -77,6 +78,9 @@ void setup() {
   // 3. Initialize bus fetcher
   // =========================================
   bus_fetcher = createFetcher();
+  #else
+  Serial.println("[Main] DUMMY_BUSES_DEBUG enabled - skipping WiFi, NTP and fetcher");
+  #endif
 
   // =========================================
   // 4. Initialize display
@@ -95,15 +99,31 @@ void setup() {
     // screen_tests() never returns
   #endif
 
+  #if DUMMY_BUSES_DEBUG
+  // Load dummy targets and render immediately, no fetch needed
+  Serial.println("[Main] Rendering dummy bus data...");
+  for (int i = 0; i < DUMMY_TARGETS_COUNT; i++) {
+    bus_targets[i] = DUMMY_TARGETS[i];
+  }
+  if (renderer) {
+    renderer->render(bus_targets, DUMMY_TARGETS_COUNT);
+  }
+  #else
   // Copy const targets to mutable array
   for (int i = 0; i < TARGETS_COUNT; i++) {
     bus_targets[i] = MY_TARGETS[i];
   }
-
   Serial.printf("[Main] Tracking %d bus targets\n", TARGETS_COUNT);
+  #endif
 }
 
 void loop() {
+  #if DUMMY_BUSES_DEBUG
+  // Nothing to do - dummy data already rendered in setup()
+  delay(1000);
+  return;
+  #endif
+
   // =========================================
   // Periodic bus data fetch
   // =========================================
