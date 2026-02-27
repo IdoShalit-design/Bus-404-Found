@@ -143,41 +143,45 @@ void HUB75Display::screen_tests() {
 // Private Methods
 // =========================================
 
+void HUB75Display::drawIcon(int x, int y, uint16_t color) {
+    for (int row = 0; row < ICON_H; row++) {
+        uint8_t rowBits = BUS_ICON[row];
+        for (int col = 0; col < ICON_W; col++) {
+            if (rowBits & (0x80 >> col)) {
+                _matrix->drawPixel(x + col, y + row, color);
+            }
+        }
+    }
+}
+
 void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     int y = row * ROW_HEIGHT;
 
-    // Determine color based on data availability and real-time status
-    uint16_t minutesColor;
-    if (target.minutes_remaining < 0) {
-        minutesColor = COLOR_NO_DATA;
-    } else if (target.is_realtime) {
-        minutesColor = COLOR_REALTIME;
-    } else {
-        minutesColor = COLOR_SCHEDULED;
-    }
-
-    // --- Draw line number (left side) ---
     _matrix->setTextSize(1);
-    _matrix->setTextColor(COLOR_LINE_NUM);
+
+    // --- Line number (dark green, far left) ---
+    _matrix->setTextColor(COLOR_BUS_NUM);
     _matrix->setCursor(XCOL_LINE_NUM, y + 1);
     _matrix->print(target.line);
 
-    // --- Draw minutes remaining (center/right) ---
+    // --- Destination (white) ---
+    _matrix->setTextColor(COLOR_DEST);
+    _matrix->setCursor(XCOL_DEST, y + 1);
+    _matrix->print(target.destination);
+
+    // --- Minutes remaining ---
+    // Positive minutes: green (realtime) or yellow (scheduled)
+    // Zero or no data (<=0): show "0" in red
+    uint16_t minutesColor;
+    int minutesToShow;
+
+    minutesColor  = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
+    minutesToShow = target.minutes_remaining;
+
     _matrix->setTextColor(minutesColor);
     _matrix->setCursor(XCOL_MINUTES, y + 1);
-    
-    if (target.minutes_remaining < 0) {
-        _matrix->print("---");
-    } else if (target.minutes_remaining == 0) {
-        _matrix->print("NOW");
-    } else {
-        _matrix->printf("%d min", target.minutes_remaining);
-    }
+    _matrix->printf("%d", minutesToShow);
 
-    // --- Draw real-time indicator (far right) ---
-    if (target.minutes_remaining >= 0) {
-        _matrix->setCursor(XCOL_STATUS, y + 1);
-        _matrix->setTextColor(minutesColor);
-        _matrix->print(target.is_realtime ? "RT" : "SC");
-    }
+    // --- Icon (same color as minutes) ---
+    drawIcon(XCOL_IMAGE_START, y, minutesColor);
 }
