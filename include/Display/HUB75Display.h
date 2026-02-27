@@ -13,7 +13,7 @@
 #define PANEL_HEIGHT  32
 
 // --- Number of panels chained ---
-#define PANEL_CHAIN 1 
+#define PANEL_CHAIN 2 
 
 // --- Total display resolution ---
 #define DISPLAY_WIDTH  (PANEL_WIDTH * PANEL_CHAIN)  // 128
@@ -44,21 +44,54 @@
 // --- Layout: X cursor positions per row (depends on number of panels) ---
 // 2-panel layout (128px wide): generous spacing
 // 1-panel layout (64px wide):  compact spacing
-#if PANEL_CHAIN == 2
-    #define XCOL_LINE_NUM  2    // Bus line number (left)
-    #define XCOL_MINUTES   40   // Minutes remaining (center)
-    #define XCOL_STATUS    100  // RT/SC indicator (right)
-#elif PANEL_CHAIN == 1
-    #define XCOL_LINE_NUM  2    // Bus line number (left)
-    #define XCOL_MINUTES   22   // Minutes remaining (center)
-    #define XCOL_STATUS    48   // RT/SC indicator (right)
+#if PANEL_CHAIN >= 2
+    #define XCOL_LINE_NUM    0    // Bus line number (far left)
+    #define XCOL_DEST        14   // Destination text
+    #define XCOL_MINUTES     85   // Minutes remaining
+    #define XCOL_IMAGE_START 116  // Reserved for image (last 12px)
+#else
+    #define XCOL_LINE_NUM    0    // Bus line number (far left)
+    #define XCOL_DEST        14   // Destination text
+    #define XCOL_MINUTES     40   // Minutes remaining
+    #define XCOL_IMAGE_START 58   // Reserved for image (last 6px)
 #endif
+
+// --- Icon dimensions (fits inside the reserved image zone at row end) ---
+#define ICON_W 8   // pixels wide  (replace with your bitmap width)
+#define ICON_H 8   // pixels tall  (replace with your bitmap height)
+
+// Monochrome bus icon bitmap, ICON_W x ICON_H pixels.
+// Each byte = one row; bit 7 is the leftmost pixel.
+// Replace this array with your own bitmap.
+// static const uint8_t BUS_ICON[ICON_H] = {
+//     0b00000000,  // ........
+//     0b00000000,  // ........
+//     0b11100000,  // ###.....
+//     0b00010000,  // ...#....
+//     0b11001000,  // ##..#...
+//     0b00100100,  // ..#..#..
+//     0b10010100,  // #..#.#..
+//     0b11010100,  // ##.#.#..
+// };
+
+static const uint8_t BUS_ICON[ICON_H] = {
+    0b00000000,  // ........
+    0b11100000,  // ###.....
+    0b11110000,  // ####....
+    0b00011000,  // ...##...
+    0b11001100,  // ##..##..
+    0b00100110,  // ..#..##.
+    0b10010110,  // #..#..##.
+    0b11010110   // ##.#..##.
+};
+
 
 // --- Color Definitions (RGB565) ---
 #define COLOR_REALTIME  0x07E0  // Green - live GPS data
+#define COLOR_BUS_NUM   0x1B26  // Dark green - bus line number (slightly darker than realtime)
 #define COLOR_SCHEDULED 0xFFE0  // Yellow - scheduled time
-#define COLOR_NO_DATA   0xF800  // Red - no data available
-#define COLOR_LINE_NUM  0xFFFF  // White - bus line number
+#define COLOR_NO_DATA   0xF800  // Red - no data / arriving now
+#define COLOR_DEST      0xFFFF  // White - destination text
 #define COLOR_TIME      0x07FF  // Cyan - time display
 
 /**
@@ -77,6 +110,14 @@ private:
      * @param row The row index (0-based) for vertical positioning.
      */
     void drawBusRow(const BusTarget& target, int row);
+
+    /**
+     * @brief Draws a monochrome bitmap icon at (x, y) in the given color.
+     * @param x      Top-left X pixel.
+     * @param y      Top-left Y pixel.
+     * @param color  RGB565 color for lit pixels.
+     */
+    void drawIcon(int x, int y, uint16_t color);
 
 public:
     /**
@@ -120,5 +161,6 @@ public:
      */
     void screen_tests();
 };
+
 
 #endif
