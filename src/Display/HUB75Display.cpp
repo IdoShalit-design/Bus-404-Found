@@ -159,12 +159,12 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     // --- Draw line number (left side) ---
     _matrix->setTextSize(1);
     _matrix->setTextColor(COLOR_LINE_NUM);
-    _matrix->setCursor(2, y + 1);
+    _matrix->setCursor(XCOL_LINE_NUM, y + 1);
     _matrix->print(target.line);
 
     // --- Draw minutes remaining (center/right) ---
     _matrix->setTextColor(minutesColor);
-    _matrix->setCursor(40, y + 1);
+    _matrix->setCursor(XCOL_MINUTES, y + 1);
     
     if (target.minutes_remaining < 0) {
         _matrix->print("---");
@@ -176,7 +176,7 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
 
     // --- Draw real-time indicator (far right) ---
     if (target.minutes_remaining >= 0) {
-        _matrix->setCursor(100, y + 1);
+        _matrix->setCursor(XCOL_STATUS, y + 1);
         _matrix->setTextColor(minutesColor);
         _matrix->print(target.is_realtime ? "RT" : "SC");
     }
