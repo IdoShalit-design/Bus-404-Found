@@ -4,7 +4,7 @@
 #include "Secrets.h"  // WiFi credentials (not committed to git)
 
 // --- Debug Flags ---
-#define SCREEN_DEBUG 1  // Set to 1 to run display tests instead of normal program
+#define SCREEN_DEBUG 0  // Set to 1 to run display tests instead of normal program
 
 // --- TimeZone ---
 #define TIME_ZONE "IST-2IDT,M3.4.4/26,M10.5.0"

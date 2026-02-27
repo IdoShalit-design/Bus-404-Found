@@ -32,7 +32,9 @@ HUB75Display::~HUB75Display() {
 
 
 bool HUB75Display::init() {
-    // הגדרת מבנה הפינים מראש
+    Serial.println("[HUB75Display] Starting initialization...");
+
+    // Pin config matching ESP32-S3 defaults
     HUB75_I2S_CFG::i2s_pins _pins = {
         R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN, 
         A_PIN, B_PIN, C_PIN, D_PIN, E_PIN, 
@@ -43,13 +45,36 @@ bool HUB75Display::init() {
         PANEL_WIDTH,
         PANEL_HEIGHT,
         PANEL_CHAIN,
-        _pins 
+        _pins
     );
 
-    mxconfig.i2sspeed = HUB75_I2S_CFG::HZ_10M; 
-    
+    // Use defaults: SHIFTREG driver, clkphase=true
+    mxconfig.i2sspeed = HUB75_I2S_CFG::HZ_10M;
+
+    Serial.printf("[HUB75Display] Pins: R1=%d G1=%d B1=%d R2=%d G2=%d B2=%d\n",
+                  R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN);
+    Serial.printf("[HUB75Display] Addr: A=%d B=%d C=%d D=%d E=%d\n",
+                  A_PIN, B_PIN, C_PIN, D_PIN, E_PIN);
+    Serial.printf("[HUB75Display] Ctrl: LAT=%d OE=%d CLK=%d\n",
+                  LAT_PIN, OE_PIN, CLK_PIN);
+
     _matrix = new MatrixPanel_I2S_DMA(mxconfig);
-    return _matrix->begin();
+    if (!_matrix) {
+        Serial.println("[HUB75Display] ERROR: Failed to allocate matrix");
+        return false;
+    }
+
+    if (!_matrix->begin()) {
+        Serial.println("[HUB75Display] ERROR: begin() failed");
+        delete _matrix;
+        _matrix = nullptr;
+        return false;
+    }
+
+    _matrix->setBrightness8(DISPLAY_BRIGHTNESS);
+    _matrix->clearScreen();
+    Serial.println("[HUB75Display] Init complete!");
+    return true;
 }
 
 void HUB75Display::render(const BusTarget* targets, int count) {
