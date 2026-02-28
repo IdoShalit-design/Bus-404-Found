@@ -166,14 +166,18 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     _matrix->print(target.line);
 
     // --- Destination (white) ---
-    String destStr = String(target.destination);
-    if (destStr.length() > MAX_DEST_CHARS) {
-        destStr = destStr.substring(0, MAX_DEST_CHARS);
-    }
-
     _matrix->setTextColor(COLOR_DEST);
     _matrix->setCursor(XCOL_DEST, y + 1);
-    _matrix->print(destStr);
+
+    size_t destLen = strnlen(target.destination, sizeof(target.destination));
+    if (destLen <= MAX_DEST_CHARS) {
+        _matrix->print(target.destination);
+    } else {
+        char truncated[MAX_DEST_CHARS + 1];
+        strncpy(truncated, target.destination, MAX_DEST_CHARS);
+        truncated[MAX_DEST_CHARS] = '\0';
+        _matrix->print(truncated);
+    }
 
     // --- Minutes remaining ---
     // No data: red "--"

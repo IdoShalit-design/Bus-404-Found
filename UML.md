@@ -51,8 +51,8 @@ classDiagram
             +TimeManager(tz)
             +init_and_sync() void
             +is_time_set() bool
-            +get_formatted_time() String
-            +get_minutes_until(eta) int
+            +get_formatted_time(char* buf, size_t len) void
+            +get_minutes_until(const char* eta) int
         }
     }
 
@@ -76,16 +76,17 @@ classDiagram
         }
         class IBusFetcher {
             <<IBusFetcher.h>>
-            +update(BusTarget bus) bool
+            +~IBusFetcher()
+            +update(BusTarget& bus)* bool
         }
         class CurlbusFetcher {
             <<CurlBusFetcher.h>>
             -DynamicJsonDocument* _doc
-            -char _url[]
+            -char _url[CURLBUS_URL_BUFFER_SIZE]
             -WiFiClientSecure _secureClient
             +CurlbusFetcher()
             +~CurlbusFetcher()
-            +update(BusTarget bus) bool
+            +update(BusTarget& bus) bool
         }
     }
 
@@ -93,12 +94,24 @@ classDiagram
     %% include/Display/ - Display Module Headers
     %% ============================================
     namespace include_Display {
+        class DisplayConfig {
+            <<DisplayConfig.h>>
+            +PANEL_WIDTH
+            +PANEL_HEIGHT
+            +PANEL_CHAIN
+            +DISPLAY_WIDTH
+            +DISPLAY_HEIGHT
+            +DISPLAY_BRIGHTNESS
+            +HUB75 Pin Definitions
+            +Color Definitions (RGB565)
+        }
         class IRenderer {
             <<IRenderer.h>>
-            +init() bool
-            +render(BusTarget* targets, int count) void
-            +clear() void
-            +setBrightness(uint8_t) void
+            +~IRenderer()
+            +init()* bool
+            +render(const BusTarget* targets, int count)* void
+            +clear()* void
+            +setBrightness(uint8_t)* void
         }
         class HUB75Display {
             <<HUB75Display.h>>
@@ -106,11 +119,11 @@ classDiagram
             +HUB75Display()
             +~HUB75Display()
             +init() bool
-            +render(BusTarget* targets, int count) void
+            +render(const BusTarget* targets, int count) void
             +clear() void
             +setBrightness(uint8_t) void
             +screen_tests() void
-            -drawBusRow(BusTarget target, int row) void
+            -drawBusRow(const BusTarget& target, int row) void
             -drawIcon(int x, int y, uint16_t color) void
         }
     }
@@ -121,11 +134,11 @@ classDiagram
     namespace Future {
         class MockFetcher {
             <<Testing>>
-            +update(BusTarget bus) bool
+            +update(BusTarget& bus) bool
         }
         class GovIlFetcher {
             <<Alternative API>>
-            +update(BusTarget bus) bool
+            +update(BusTarget& bus) bool
         }
     }
 
@@ -136,15 +149,16 @@ classDiagram
 
     %% Main application relationships
     Main --> TimeManager : owns
-    Main --> IBusFetcher : owns
-    Main --> IRenderer : owns
-    Main ..> NetworkManager : creates locally
+    Main --> IBusFetcher : owns (via pointer)
+    Main --> IRenderer : owns (via pointer)
+    Main ..> NetworkManager : creates locally in setup
     HUB75Display ..|> IRenderer : implements
 
     %% Config/Secrets dependencies
     Main ..> Config : uses
     Config ..> Structs : uses
     Config ..> Secrets : uses
+    HUB75Display ..> DisplayConfig : uses
 
     %% Network dependencies
     NetworkManager --> WifiCredentials : has
