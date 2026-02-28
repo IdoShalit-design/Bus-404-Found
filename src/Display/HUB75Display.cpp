@@ -4,12 +4,19 @@
  * 
  * Renders bus arrival information on chained HUB75 LED matrices
  * using the ESP32-HUB75-MatrixPanel-DMA library.
+ * 
+ * Layout (128x32, two 64x32 panels):
+ *   Left panel:  Line number + 1st arrival ETA
+ *   Right panel: 2nd arrival ETA
  */
 
 #include "Display/HUB75Display.h"
 
 // Row height for each bus entry (pixels)
 static const int ROW_HEIGHT = DISPLAY_HEIGHT / 3;  // 10px per row for 3 targets
+
+// Panel boundary (each panel is 64px wide)
+static const int PANEL_2_X = PANEL_WIDTH;  // 64
 
 // =========================================
 // Constructor & Destructor
@@ -97,41 +104,65 @@ void HUB75Display::setBrightness(uint8_t brightness) {
 // Private Methods
 // =========================================
 
-void HUB75Display::drawBusRow(const BusTarget& target, int row) {
-    int y = row * ROW_HEIGHT;
-
-    // Determine color based on data availability and real-time status
+/**
+ * @brief Draws a single arrival's ETA info at the given position.
+ * @param arr    The arrival data to render.
+ * @param x      Horizontal pixel offset for the ETA text.
+ * @param y      Vertical pixel offset.
+ */
+void HUB75Display::drawArrival(const ArrivalInfo& arr, int x, int y) {
     uint16_t minutesColor;
-    if (target.minutes_remaining < 0) {
+    if (arr.minutes_remaining < 0) {
         minutesColor = COLOR_NO_DATA;
-    } else if (target.is_realtime) {
+    } else if (arr.is_realtime) {
         minutesColor = COLOR_REALTIME;
     } else {
         minutesColor = COLOR_SCHEDULED;
     }
 
-    // --- Draw line number (left side) ---
+    // --- Draw minutes remaining ---
+    _matrix->setTextColor(minutesColor);
+    _matrix->setCursor(x, y);
+
+    if (arr.minutes_remaining < 0) {
+        _matrix->print("---");
+    } else if (arr.minutes_remaining == 0) {
+        _matrix->print("NOW");
+    } else {
+        _matrix->printf("%d min", arr.minutes_remaining);
+    }
+
+    // --- Draw real-time indicator ---
+    if (arr.minutes_remaining >= 0) {
+        _matrix->setCursor(x + 36, y);
+        _matrix->setTextColor(minutesColor);
+        _matrix->print(arr.is_realtime ? "RT" : "SC");
+    }
+}
+
+void HUB75Display::drawBusRow(const BusTarget& target, int row) {
+    int y = row * ROW_HEIGHT;
+
+    // --- Left panel: Line number + 1st arrival ---
     _matrix->setTextSize(1);
     _matrix->setTextColor(COLOR_LINE_NUM);
     _matrix->setCursor(2, y + 1);
     _matrix->print(target.line);
 
-    // --- Draw minutes remaining (center/right) ---
-    _matrix->setTextColor(minutesColor);
-    _matrix->setCursor(40, y + 1);
-    
-    if (target.minutes_remaining < 0) {
-        _matrix->print("---");
-    } else if (target.minutes_remaining == 0) {
-        _matrix->print("NOW");
+    if (target.arrival_count > 0) {
+        drawArrival(target.arrivals[0], 20, y + 1);
     } else {
-        _matrix->printf("%d min", target.minutes_remaining);
+        _matrix->setTextColor(COLOR_NO_DATA);
+        _matrix->setCursor(20, y + 1);
+        _matrix->print("---");
     }
 
-    // --- Draw real-time indicator (far right) ---
-    if (target.minutes_remaining >= 0) {
-        _matrix->setCursor(100, y + 1);
-        _matrix->setTextColor(minutesColor);
-        _matrix->print(target.is_realtime ? "RT" : "SC");
+    // --- Right panel: 2nd arrival ---
+    if (target.arrival_count > 1) {
+        drawArrival(target.arrivals[1], PANEL_2_X + 4, y + 1);
+    } else {
+        _matrix->setTextColor(COLOR_NO_DATA);
+        _matrix->setCursor(PANEL_2_X + 4, y + 1);
+        _matrix->print("---");
     }
 }

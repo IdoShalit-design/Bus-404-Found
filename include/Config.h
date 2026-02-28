@@ -16,9 +16,9 @@
 
 // --- Bus Targets ---
 const BusTarget MY_TARGETS[] = {
-    {"1570", "7", "", 0},   // Line 7 at Bezalel/Trumpeldor → Givat Ram
-    {"3541", "19", "", 0},  // Line 19 → Ein Kerem
-    {"6134", "72", "", 0}   // Line 72 → Romema
+    {"1570", "7", {}, 0},   // Line 7 at Bezalel/Trumpeldor → Givat Ram
+    {"3541", "19", {}, 0},  // Line 19 → Ein Kerem
+    {"6134", "72", {}, 0}   // Line 72 → Romema
 };
 
 const int TARGETS_COUNT = sizeof(MY_TARGETS) / sizeof(MY_TARGETS[0]);

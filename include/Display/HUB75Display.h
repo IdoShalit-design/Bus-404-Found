@@ -22,6 +22,14 @@ private:
      */
     void drawBusRow(const BusTarget& target, int row);
 
+    /**
+     * @brief Draws a single arrival's ETA info at the given position.
+     * @param arr The arrival data to render.
+     * @param x Horizontal pixel offset.
+     * @param y Vertical pixel offset.
+     */
+    void drawArrival(const ArrivalInfo& arr, int x, int y);
+
 public:
     /**
      * @brief Constructor - does not initialize hardware.

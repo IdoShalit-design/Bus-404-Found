@@ -111,11 +111,14 @@ void loop() {
       bool success = bus_fetcher->update(bus_targets[i]);
       
       if (success) {
-        Serial.printf("Line %s: %s (%d min) %s\n", 
-                      bus_targets[i].line,
-                      bus_targets[i].last_known_ETA,
-                      bus_targets[i].minutes_remaining,
-                      bus_targets[i].is_realtime ? "[LIVE]" : "[SCHED]");
+        for (int j = 0; j < bus_targets[i].arrival_count; j++) {
+          Serial.printf("Line %s [%d/%d]: %s (%d min) %s\n", 
+                        bus_targets[i].line,
+                        j + 1, bus_targets[i].arrival_count,
+                        bus_targets[i].arrivals[j].eta,
+                        bus_targets[i].arrivals[j].minutes_remaining,
+                        bus_targets[i].arrivals[j].is_realtime ? "[LIVE]" : "[SCHED]");
+        }
       } else {
         Serial.printf("Line %s: No data\n", bus_targets[i].line);
       }

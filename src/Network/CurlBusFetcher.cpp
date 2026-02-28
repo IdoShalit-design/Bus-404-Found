@@ -50,8 +50,8 @@ CurlbusFetcher::~CurlbusFetcher() {
  * @brief Fetches and updates the ETA for a specific bus line at a station.
  * 
  * @param bus Reference to BusTarget containing stationId and line to search for.
- *            On success, bus.last_known_ETA is updated with "HH:MM" format.
- * @return true if the bus line was found and ETA was updated.
+ *            On success, bus.arrivals[] is updated with up to MAX_ARRIVALS entries.
+ * @return true if the bus line was found and at least one ETA was updated.
  * @return false if HTTP request failed, parsing failed, or line not found.
  */
 bool CurlbusFetcher::update(BusTarget& bus) {
@@ -141,9 +141,13 @@ bool CurlbusFetcher::update(BusTarget& bus) {
     }
     
     // =========================================
-    // Step 5: Search for matching bus line
+    // Step 5: Search for matching bus line (up to MAX_ARRIVALS)
     // =========================================
+    bus.arrival_count = 0;
+
     for (JsonObject visit : visits) {
+        if (bus.arrival_count >= MAX_ARRIVALS) break;
+
         const char* lineName = visit["line_name"];
         
         if (lineName && strcmp(lineName, bus.line) == 0) {
@@ -151,15 +155,17 @@ bool CurlbusFetcher::update(BusTarget& bus) {
             const char* eta = visit["eta"];
             
             if (eta && strlen(eta) >= 16) {
+                ArrivalInfo& arr = bus.arrivals[bus.arrival_count];
+
                 // ETA format: "2026-01-03 21:54:00+02:00"
                 //              0123456789|11111
                 //                        |01234
                 // Extract HH:MM from character positions 11-15
-                strncpy(bus.last_known_ETA, eta + 11, 5);
-                bus.last_known_ETA[5] = '\0';  // Null-terminate the string
+                strncpy(arr.eta, eta + 11, 5);
+                arr.eta[5] = '\0';  // Null-terminate the string
                 
                 // Check if real-time (has GPS location data)
-                bus.is_realtime = !visit["location"].isNull();
+                arr.is_realtime = !visit["location"].isNull();
                 
                 // =========================================
                 // Calculate minutes remaining
@@ -173,29 +179,34 @@ bool CurlbusFetcher::update(BusTarget& bus) {
                 if (getLocalTime(&timeinfo)) {
                     int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
                     int etaMinutes = etaHour * 60 + etaMin;
-                    bus.minutes_remaining = etaMinutes - nowMinutes;
+                    arr.minutes_remaining = etaMinutes - nowMinutes;
                     
                     // Handle midnight crossing (e.g., now=23:50, eta=00:10)
-                    if (bus.minutes_remaining < -720) {  // More than 12 hours negative
-                        bus.minutes_remaining += 1440;   // Add 24 hours
+                    if (arr.minutes_remaining < -720) {  // More than 12 hours negative
+                        arr.minutes_remaining += 1440;   // Add 24 hours
                     }
                 } else {
-                    bus.minutes_remaining = -1;  // Time not available
+                    arr.minutes_remaining = -1;  // Time not available
                 }
                 
                 #ifdef DEBUG
-                Serial.printf("[CurlbusFetcher] Line %s at station %s: ETA %s (%d min)\n", 
-                              bus.line, bus.stationId, bus.last_known_ETA, bus.minutes_remaining);
+                Serial.printf("[CurlbusFetcher] Line %s at station %s: arrival #%d ETA %s (%d min)\n", 
+                              bus.line, bus.stationId, bus.arrival_count + 1,
+                              arr.eta, arr.minutes_remaining);
                 #endif
-                return true;
+                bus.arrival_count++;
             }
         }
     }
     
-    // Line not found in any of the visits
-    #ifdef DEBUG
-    Serial.printf("[CurlbusFetcher] Line %s not found at station %s\n", bus.line, bus.stationId);
-    #endif
-    return false;
+    if (bus.arrival_count == 0) {
+        // Line not found in any of the visits
+        #ifdef DEBUG
+        Serial.printf("[CurlbusFetcher] Line %s not found at station %s\n", bus.line, bus.stationId);
+        #endif
+        return false;
+    }
+
+    return true;
 }
 
