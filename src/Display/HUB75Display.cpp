@@ -10,7 +10,7 @@
 #include "Structs.h"
 
 // Row height for each bus entry (pixels)
-static const int ROW_HEIGHT = DISPLAY_HEIGHT / 3;  // 10px per row for 3 targets
+static const int ROW_HEIGHT = DISPLAY_HEIGHT / 3 + 1;  // 10px per row for 3 targets
 
 // =========================================
 // Constructor & Destructor
@@ -73,6 +73,7 @@ bool HUB75Display::init() {
 
     _matrix->setBrightness8(DISPLAY_BRIGHTNESS);
     _matrix->clearScreen();
+    _matrix->setTextWrap(false);
     Serial.println("[HUB75Display] Init complete!");
     return true;
 }
@@ -165,9 +166,14 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     _matrix->print(target.line);
 
     // --- Destination (white) ---
+    String destStr = String(target.destination);
+    if (destStr.length() > MAX_DEST_CHARS) {
+        destStr = destStr.substring(0, MAX_DEST_CHARS);
+    }
+
     _matrix->setTextColor(COLOR_DEST);
     _matrix->setCursor(XCOL_DEST, y + 1);
-    _matrix->print(target.destination);
+    _matrix->print(destStr);
 
     // --- Minutes remaining ---
     // Positive minutes: green (realtime) or yellow (scheduled)
@@ -182,6 +188,10 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     _matrix->setCursor(XCOL_MINUTES, y + 1);
     _matrix->printf("%d", minutesToShow);
 
-    // --- Icon (same color as minutes) ---
+    int currentX = _matrix->getCursorX();
+
+    _matrix->drawPixel(currentX + 1, y + 1, minutesColor); // פיקסל עליון
+    _matrix->drawPixel(currentX + 1, y + 2, minutesColor); // פיקסל מתחתיו
+
     drawIcon(XCOL_IMAGE_START, y, minutesColor);
 }

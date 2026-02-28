@@ -13,7 +13,7 @@
 #define PANEL_HEIGHT  32
 
 // --- Number of panels chained ---
-#define PANEL_CHAIN 2 
+#define PANEL_CHAIN 2
 
 // --- Total display resolution ---
 #define DISPLAY_WIDTH  (PANEL_WIDTH * PANEL_CHAIN)  // 128
@@ -52,9 +52,13 @@
 #else
     #define XCOL_LINE_NUM    0    // Bus line number (far left)
     #define XCOL_DEST        14   // Destination text
-    #define XCOL_MINUTES     40   // Minutes remaining
+    #define XCOL_MINUTES     48   // Minutes remaining
     #define XCOL_IMAGE_START 58   // Reserved for image (last 6px)
 #endif
+
+// GFX default font at textSize(1): 6px per character (5px glyph + 1px spacing)
+#define FONT_CHAR_W      6
+#define MAX_DEST_CHARS   ((XCOL_MINUTES - XCOL_DEST) / FONT_CHAR_W)
 
 // --- Icon dimensions (fits inside the reserved image zone at row end) ---
 #define ICON_W 8   // pixels wide  (replace with your bitmap width)
@@ -62,33 +66,34 @@
 
 // Monochrome bus icon bitmap, ICON_W x ICON_H pixels.
 // Each byte = one row; bit 7 is the leftmost pixel.
-// Replace this array with your own bitmap.
+
 // static const uint8_t BUS_ICON[ICON_H] = {
-//     0b00000000,  // ........
-//     0b00000000,  // ........
-//     0b11100000,  // ###.....
-//     0b00010000,  // ...#....
-//     0b11001000,  // ##..#...
-//     0b00100100,  // ..#..#..
-//     0b10010100,  // #..#.#..
-//     0b11010100,  // ##.#.#..
-// };
+// 0b00000000,  // ........
+//     0b11110000,  // ####....
+//     0b11111000,  // #####...
+//     0b00011100,  // ...###..
+//     0b11001110,  // ##..###.
+//     0b00100110,  // ..#..##.
+//     0b10010110,  // #..#..##.
+//     0b11010110   // ##.#..##.
+//     };
 
 static const uint8_t BUS_ICON[ICON_H] = {
     0b00000000,  // ........
+    0b00000000,  // ........
     0b11100000,  // ###.....
-    0b11110000,  // ####....
-    0b00011000,  // ...##...
-    0b11001100,  // ##..##..
-    0b00100110,  // ..#..##.
-    0b10010110,  // #..#..##.
-    0b11010110   // ##.#..##.
-};
+    0b00010000,  // ...#....
+    0b11001000,  // ##..#...
+    0b00100100,  // ..#..#..
+    0b10010100,  // #..#.#..
+    0b11010100   // ##.#.#..
+    };
+
 
 
 // --- Color Definitions (RGB565) ---
 #define COLOR_REALTIME  0x07E0  // Green - live GPS data
-#define COLOR_BUS_NUM   0x1B26  // Dark green - bus line number (slightly darker than realtime)
+#define COLOR_BUS_NUM   0x1A8E3D  // Dark green - bus line number (slightly darker than realtime)
 #define COLOR_SCHEDULED 0xFFE0  // Yellow - scheduled time
 #define COLOR_NO_DATA   0xF800  // Red - no data / arriving now
 #define COLOR_DEST      0xFFFF  // White - destination text
