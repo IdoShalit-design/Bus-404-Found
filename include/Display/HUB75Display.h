@@ -13,7 +13,7 @@
 #define PANEL_HEIGHT  32
 
 // --- Number of panels chained ---
-#define PANEL_CHAIN 2
+#define PANEL_CHAIN 1
 
 // --- Total display resolution ---
 #define DISPLAY_WIDTH  (PANEL_WIDTH * PANEL_CHAIN)  // 128
@@ -39,7 +39,9 @@
 #define OE_PIN 2
 #define CLK_PIN 41
 
-#define DISPLAY_BRIGHTNESS 128  // 0-255
+//#define DISPLAY_BRIGHTNESS 128  // 0-255
+#define DISPLAY_BRIGHTNESS 32  // 0-255
+
 
 // --- Layout: X cursor positions per row (depends on number of panels) ---
 // 2-panel layout (128px wide): generous spacing

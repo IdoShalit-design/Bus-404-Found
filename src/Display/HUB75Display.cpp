@@ -184,7 +184,7 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
         minutesColor = COLOR_NO_DATA;
         _matrix->setTextColor(minutesColor);
         _matrix->setCursor(XCOL_MINUTES, y + 1);
-        _matrix->print("--");
+        _matrix->print("-");
     } else {
         minutesColor  = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
         _matrix->setTextColor(minutesColor);
