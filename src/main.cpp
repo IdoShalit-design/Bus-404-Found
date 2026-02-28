@@ -137,6 +137,7 @@ void loop() {
     
     for (int i = 0; i < TARGETS_COUNT; i++) {
       bool success = bus_fetcher->update(bus_targets[i]);
+      bus_targets[i].no_data = !success;
       
       if (success) {
         Serial.printf("Line %s: %s (%d min) %s\n", 

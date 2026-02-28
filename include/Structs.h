@@ -15,6 +15,7 @@ struct BusTarget {
     bool is_realtime;           // True if real-time data
     char last_known_ETA[6];     // "HH:MM" format
     int minutes_remaining;      // Numeric value for logic
+    bool no_data;               // True if last fetch returned no data
 };
 
 #endif

@@ -176,22 +176,26 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     _matrix->print(destStr);
 
     // --- Minutes remaining ---
+    // No data: red "--"
     // Positive minutes: green (realtime) or yellow (scheduled)
-    // Zero or no data (<=0): show "0" in red
     uint16_t minutesColor;
-    int minutesToShow;
-
-    minutesColor  = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
-    minutesToShow = target.minutes_remaining;
-
-    _matrix->setTextColor(minutesColor);
-    _matrix->setCursor(XCOL_MINUTES, y + 1);
-    _matrix->printf("%d", minutesToShow);
+    
+    if (target.no_data) {
+        minutesColor = COLOR_NO_DATA;
+        _matrix->setTextColor(minutesColor);
+        _matrix->setCursor(XCOL_MINUTES, y + 1);
+        _matrix->print("--");
+    } else {
+        minutesColor  = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
+        _matrix->setTextColor(minutesColor);
+        _matrix->setCursor(XCOL_MINUTES, y + 1);
+        _matrix->printf("%d", target.minutes_remaining);
+    }
 
     int currentX = _matrix->getCursorX();
 
-    _matrix->drawPixel(currentX + 1, y + 1, minutesColor); // פיקסל עליון
-    _matrix->drawPixel(currentX + 1, y + 2, minutesColor); // פיקסל מתחתיו
+    _matrix->drawPixel(currentX + 1, y + 1, minutesColor);
+    _matrix->drawPixel(currentX + 1, y + 2, minutesColor);
 
     drawIcon(XCOL_IMAGE_START, y, minutesColor);
 }

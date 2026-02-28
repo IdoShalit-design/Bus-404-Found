@@ -5,17 +5,17 @@
 
 // --- Debug Flags ---
 #define SCREEN_DEBUG       0  // Set to 1 to run display color tests (blocks forever)
-#define DUMMY_BUSES_DEBUG  0  // Set to 1 to skip fetching and render dummy bus data
+#define DUMMY_BUSES_DEBUG  1  // Set to 1 to skip fetching and render dummy bus data
 
 // --- Dummy bus data (used when DUMMY_BUSES_DEBUG == 1) ---
 #if DUMMY_BUSES_DEBUG
 const BusTarget DUMMY_TARGETS[] = {
-    // Realtime, 5 minutes
-    {"0000", "7",  "Givat Ram",  true,  "12:05", 5},
-    // Realtime, arriving now (0 minutes)
-    {"0000", "19", "Ein Kerem",  true,  "12:00", 0},
-    // Scheduled (not realtime), 7 minutes
-    {"0000", "72", "Romema",     false, "12:07", 7},
+    // Real-time (live GPS), 5 minutes
+    {"0000", "7",  "Givat Ram",  true,  "12:05", 5,  false},
+    // Scheduled (no GPS), 7 minutes
+    {"0000", "19", "Ein Kerem",  false, "12:07", 7,  false},
+    // No data returned from API
+    {"0000", "72", "Romema",     false, "",       0,  true},
 };
 const int DUMMY_TARGETS_COUNT = sizeof(DUMMY_TARGETS) / sizeof(DUMMY_TARGETS[0]);
 #endif
