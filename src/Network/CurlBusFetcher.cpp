@@ -107,11 +107,12 @@ bool CurlbusFetcher::update(BusTarget& bus) {
     // Filter reduces memory by ignoring unwanted fields.
     // Full response is ~28KB; the filter lets ArduinoJson discard
     // unneeded data during streaming parse, so we never buffer it all.
-    StaticJsonDocument<768> filter;
+    StaticJsonDocument<1024> filter;
     filter["errors"] = true;
     filter["visits"][bus.stationId][0]["line_name"] = true;
     filter["visits"][bus.stationId][0]["eta"] = true;
     filter["visits"][bus.stationId][0]["location"] = true;  // For real-time detection
+    filter["visits"][bus.stationId][0]["static_info"]["route"]["destination"]["name"]["EN"] = true;  // Destination name
     
     // =========================================
     // Step 3: Parse JSON directly from HTTP stream (no buffering)
@@ -157,7 +158,13 @@ bool CurlbusFetcher::update(BusTarget& bus) {
         const char* lineName = visit["line_name"];
         
         if (lineName && strcmp(lineName, bus.line) == 0) {
-            // Found matching line - extract ETA
+            // Found matching line - extract destination name and ETA
+            const char* destName = visit["static_info"]["route"]["destination"]["name"]["EN"];
+            if (destName) {
+                strncpy(bus.destination, destName, sizeof(bus.destination) - 1);
+                bus.destination[sizeof(bus.destination) - 1] = '\0';
+            }
+
             const char* eta = visit["eta"];
             
             if (eta && strlen(eta) >= 16) {
