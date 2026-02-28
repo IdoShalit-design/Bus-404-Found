@@ -11,8 +11,14 @@ classDiagram
     namespace src {
         class Main {
             <<main.cpp>>
+            -TimeManager time_manager
+            -IRenderer* renderer
+            -IBusFetcher* bus_fetcher
+            -BusTarget bus_targets[]
+            -ulong last_fetch_time
             +setup() void
             +loop() void
+            -createFetcher() IBusFetcher*
         }
     }
 
@@ -25,16 +31,23 @@ classDiagram
             +BusTarget
             +WifiCredentialsData
         }
-        class FetchResult {
-            <<BusType.h>>
-            +bool success
-            +int errorCode
-            +String errorMessage
+        class Config {
+            <<Config.h>>
+            +FETCHER_TYPE
+            +MY_TARGETS[]
+            +TARGETS_COUNT
+            +TIME_ZONE
+            +SCREEN_DEBUG
+            +DUMMY_BUSES_DEBUG
+        }
+        class Secrets {
+            <<Secrets.h>>
+            +WIFI_CREDENTIALS WifiCredentialsData
         }
         class TimeManager {
             <<TimeManager.h>>
-            -string _timezone
-            -string _ntpServer
+            -const char* _timezone
+            -const char* _ntpServer
             +TimeManager(tz)
             +init_and_sync() void
             +is_time_set() bool
@@ -47,6 +60,12 @@ classDiagram
     %% include/Network/ - Network Module Headers
     %% ============================================
     namespace include_Network {
+        class WifiCredentials {
+            <<NetworkManager.h>>
+            +const char* ssid
+            +const char* password
+            +WifiCredentials(s, p)
+        }
         class NetworkManager {
             <<NetworkManager.h>>
             -WifiCredentials _credentials
@@ -57,26 +76,16 @@ classDiagram
         }
         class IBusFetcher {
             <<IBusFetcher.h>>
-            +update(BusTarget bus) FetchResult
-            +getName() string
+            +update(BusTarget bus) bool
         }
         class CurlbusFetcher {
             <<CurlBusFetcher.h>>
-            -string _apiBase
-            +update(BusTarget bus) FetchResult
-            +getName() string
-        }
-        class TransitClient {
-            <<TransitClient.h>>
-            -IBusFetcher _fetcher
-            -BusTarget _targets
-            -size_t _targetCount
-            -ulong _lastFetchTime
-            -ulong _fetchInterval
-            +TransitClient(fetcher, targets, count)
-            +setFetchInterval(ms) void
-            +fetchAll() void
-            +shouldFetch() bool
+            -DynamicJsonDocument* _doc
+            -char _url[]
+            -WiFiClientSecure _secureClient
+            +CurlbusFetcher()
+            +~CurlbusFetcher()
+            +update(BusTarget bus) bool
         }
     }
 
@@ -100,7 +109,9 @@ classDiagram
             +render(BusTarget* targets, int count) void
             +clear() void
             +setBrightness(uint8_t) void
+            +screen_tests() void
             -drawBusRow(BusTarget target, int row) void
+            -drawIcon(int x, int y, uint16_t color) void
         }
     }
 
@@ -110,13 +121,11 @@ classDiagram
     namespace Future {
         class MockFetcher {
             <<Testing>>
-            +update(BusTarget bus) FetchResult
-            +getName() string
+            +update(BusTarget bus) bool
         }
         class GovIlFetcher {
             <<Alternative API>>
-            +update(BusTarget bus) FetchResult
-            +getName() string
+            +update(BusTarget bus) bool
         }
     }
 
@@ -124,20 +133,25 @@ classDiagram
     IBusFetcher <|.. CurlbusFetcher : implements
     IBusFetcher <|.. MockFetcher : implements
     IBusFetcher <|.. GovIlFetcher : implements
-    IBusFetcher ..> FetchResult : returns
 
     %% Main application relationships
-    Main --> NetworkManager : owns
     Main --> TimeManager : owns
-    Main --> TransitClient : owns
-    Main --> IBusFetcher : creates concrete
-    Main --> IRenderer : uses
+    Main --> IBusFetcher : owns
+    Main --> IRenderer : owns
+    Main ..> NetworkManager : creates locally
     HUB75Display ..|> IRenderer : implements
 
-    %% Dependencies
-    NetworkManager ..> WifiCredentialsData : uses
-    TransitClient --> IBusFetcher : uses DI
-    TransitClient o-- BusTarget : manages array
+    %% Config/Secrets dependencies
+    Main ..> Config : uses
+    Config ..> Structs : uses
+    Config ..> Secrets : uses
+
+    %% Network dependencies
+    NetworkManager --> WifiCredentials : has
+    Main ..> WifiCredentials : creates
+    WifiCredentials ..> WifiCredentialsData : constructed from
+
+    %% Data flow
     CurlbusFetcher ..> BusTarget : updates
     MockFetcher ..> BusTarget : updates
     HUB75Display ..> BusTarget : renders

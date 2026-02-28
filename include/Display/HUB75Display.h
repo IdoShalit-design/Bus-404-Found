@@ -13,7 +13,7 @@
 #define PANEL_HEIGHT  32
 
 // --- Number of panels chained ---
-#define PANEL_CHAIN 1
+#define PANEL_CHAIN 2
 
 // --- Total display resolution ---
 #define DISPLAY_WIDTH  (PANEL_WIDTH * PANEL_CHAIN)  // 128
