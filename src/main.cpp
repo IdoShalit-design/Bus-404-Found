@@ -72,7 +72,9 @@ void setup() {
   // =========================================
   time_manager.init_and_sync();
   Serial.println("The time now is:");
-  Serial.println(time_manager.get_formatted_time());
+  char timeBuf[6];
+  time_manager.get_formatted_time(timeBuf, sizeof(timeBuf));
+  Serial.println(timeBuf);
 
   // =========================================
   // 3. Initialize bus fetcher
@@ -133,7 +135,9 @@ void loop() {
     last_fetch_time = now ? now : 1;  // Avoid 0 to prevent re-trigger
     
     Serial.println("\n--- Fetching bus arrivals ---");
-    Serial.println(time_manager.get_formatted_time());
+    char timeBuf[6];
+    time_manager.get_formatted_time(timeBuf, sizeof(timeBuf));
+    Serial.println(timeBuf);
     
     for (int i = 0; i < TARGETS_COUNT; i++) {
       bool success = bus_fetcher->update(bus_targets[i]);
@@ -150,6 +154,7 @@ void loop() {
       }
     }
     Serial.println("-----------------------------");
+    Serial.printf("[Main] Free heap: %u bytes\n", ESP.getFreeHeap());
 
     // Update display with new data
     if (renderer) {
