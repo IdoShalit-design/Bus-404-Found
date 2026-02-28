@@ -44,11 +44,11 @@
 // --- Layout: X cursor positions per row (depends on number of panels) ---
 // 2-panel layout (128px wide): generous spacing
 // 1-panel layout (64px wide):  compact spacing
-#if PANEL_CHAIN >= 2
+#if PANEL_CHAIN == 2
     #define XCOL_LINE_NUM    0    // Bus line number (far left)
     #define XCOL_DEST        14   // Destination text
-    #define XCOL_MINUTES     85   // Minutes remaining
-    #define XCOL_IMAGE_START 116  // Reserved for image (last 12px)
+    #define XCOL_MINUTES     110   // Minutes remaining
+    #define XCOL_IMAGE_START 122  // Reserved for image (last 12px)
 #else
     #define XCOL_LINE_NUM    0    // Bus line number (far left)
     #define XCOL_DEST        14   // Destination text
