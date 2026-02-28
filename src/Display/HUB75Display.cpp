@@ -18,6 +18,12 @@ static const int ROW_HEIGHT = DISPLAY_HEIGHT / 3;  // 10px per row for 3 targets
 // Panel boundary (each panel is 64px wide)
 static const int PANEL_2_X = PANEL_WIDTH;  // 64
 
+// Layout offsets within each panel
+static const int LINE_NUM_X = 2;           // Bus line number left margin
+static const int ETA_X = 20;               // ETA text offset from panel start
+static const int RT_INDICATOR_OFFSET = 36; // RT/SC indicator offset from ETA_X
+static const int PANEL_LEFT_MARGIN = 4;    // Left margin within the second panel
+
 // =========================================
 // Constructor & Destructor
 // =========================================
@@ -134,7 +140,7 @@ void HUB75Display::drawArrival(const ArrivalInfo& arr, int x, int y) {
 
     // --- Draw real-time indicator ---
     if (arr.minutes_remaining >= 0) {
-        _matrix->setCursor(x + 36, y);
+        _matrix->setCursor(x + RT_INDICATOR_OFFSET, y);
         _matrix->setTextColor(minutesColor);
         _matrix->print(arr.is_realtime ? "RT" : "SC");
     }
@@ -146,23 +152,23 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     // --- Left panel: Line number + 1st arrival ---
     _matrix->setTextSize(1);
     _matrix->setTextColor(COLOR_LINE_NUM);
-    _matrix->setCursor(2, y + 1);
+    _matrix->setCursor(LINE_NUM_X, y + 1);
     _matrix->print(target.line);
 
     if (target.arrival_count > 0) {
-        drawArrival(target.arrivals[0], 20, y + 1);
+        drawArrival(target.arrivals[0], ETA_X, y + 1);
     } else {
         _matrix->setTextColor(COLOR_NO_DATA);
-        _matrix->setCursor(20, y + 1);
+        _matrix->setCursor(ETA_X, y + 1);
         _matrix->print("---");
     }
 
     // --- Right panel: 2nd arrival ---
     if (target.arrival_count > 1) {
-        drawArrival(target.arrivals[1], PANEL_2_X + 4, y + 1);
+        drawArrival(target.arrivals[1], PANEL_2_X + PANEL_LEFT_MARGIN, y + 1);
     } else {
         _matrix->setTextColor(COLOR_NO_DATA);
-        _matrix->setCursor(PANEL_2_X + 4, y + 1);
+        _matrix->setCursor(PANEL_2_X + PANEL_LEFT_MARGIN, y + 1);
         _matrix->print("---");
     }
 }
