@@ -114,7 +114,7 @@ ConfigPortal::ConfigPortal(NVSManager& nvs)
 void ConfigPortal::startAP() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(AP_SSID);
-    delay(100); // Allow AP to stabilize
+    delay(AP_STABILIZE_DELAY_MS);
 
     IPAddress apIP = WiFi.softAPIP();
     Serial.printf("[ConfigPortal] AP started: %s (IP: %s)\n", AP_SSID, apIP.toString().c_str());
@@ -197,8 +197,7 @@ void ConfigPortal::handleSave() {
                   ssid.c_str(), stopId.c_str(), lines.c_str());
 
     // Send success page, then restart
-    String page = buildPage("<div class='status ok'>Settings saved! Restarting in 3 seconds...</div>"
-                            "<script>setTimeout(function(){},3000);</script>");
+    String page = buildPage("<div class='status ok'>Settings saved! Restarting in 3 seconds...</div>");
     _server.send(200, "text/html", page);
 
     // Give the response time to send before restarting

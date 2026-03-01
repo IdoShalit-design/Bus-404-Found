@@ -11,7 +11,9 @@
 #define MDNS_HOSTNAME    "bus"
 #define SETUP_TIMEOUT_SEC 10
 #define DNS_PORT          53
-#define WEB_SERVER_PORT   80
+#define WEB_SERVER_PORT          80
+#define AP_STABILIZE_DELAY_MS   100
+#define AP_CHECK_INTERVAL_MS    100
 
 /**
  * @brief Handles the configuration portal: AP mode, captive portal,

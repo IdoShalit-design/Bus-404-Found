@@ -104,12 +104,12 @@ void setup() {
     if (renderer) renderer->showStatus(msg);
 
     // Check for AP client connections 10 times per second
-    for (int j = 0; j < 10; j++) {
+    for (int j = 0; j < (1000 / AP_CHECK_INTERVAL_MS); j++) {
       if (config_portal->hasClientConnected()) {
         clientConnected = true;
         break;
       }
-      delay(100);
+      delay(AP_CHECK_INTERVAL_MS);
     }
     if (clientConnected) break;
   }
