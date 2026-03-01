@@ -86,10 +86,9 @@ static const char PAGE_HTML[] PROGMEM = R"rawliteral(
             </div>
             <div class="card">
                 <h2>&#x1F68F; Bus Display Settings</h2>
-                <label for="stopId">Stop ID</label>
-                <input type="text" id="stopId" name="stopId" value="{{STOPID}}" placeholder="e.g. 1570">
-                <label for="lines">Line Numbers (comma-separated)</label>
-                <input type="text" id="lines" name="lines" value="{{LINES}}" placeholder="e.g. 7,19,72">
+                <label for="routes">Bus Routes (stop:line, comma-separated)</label>
+                <input type="text" id="routes" name="routes" value="{{ROUTES}}" placeholder="e.g. 1570:7, 3541:19, 6134:72">
+                <p style="color:#888;font-size:0.8em;margin-top:-8px;">Format: stopId:lineNumber for each bus</p>
             </div>
             <button class="btn" type="submit">&#x1F4BE; Save Settings</button>
         </form>
@@ -183,18 +182,15 @@ void ConfigPortal::handleSave() {
     // Read form values
     String ssid   = _server.arg("ssid");
     String pass   = _server.arg("password");
-    String stopId = _server.arg("stopId");
-    String lines  = _server.arg("lines");
+    String routes = _server.arg("routes");
 
     // Write to NVS
     _nvs.setSSID(ssid);
     _nvs.setPassword(pass);
-    _nvs.setStopID(stopId);
-    _nvs.setLineNumbers(lines);
+    _nvs.setRoutes(routes);
 
     Serial.println("[ConfigPortal] Settings saved to NVS");
-    Serial.printf("  SSID: %s, StopID: %s, Lines: %s\n",
-                  ssid.c_str(), stopId.c_str(), lines.c_str());
+    Serial.printf("  SSID: %s, Routes: %s\n", ssid.c_str(), routes.c_str());
 
     // Send success page, then restart
     String page = buildPage("<div class='status ok'>Settings saved! Restarting in 3 seconds...</div>");
@@ -225,8 +221,7 @@ String ConfigPortal::buildPage(const String& statusMsg) {
     // Replace placeholders with current NVS values
     page.replace("{{SSID}}",     htmlEscape(_nvs.getSSID()));
     page.replace("{{PASSWORD}}", htmlEscape(_nvs.getPassword()));
-    page.replace("{{STOPID}}",   htmlEscape(_nvs.getStopID()));
-    page.replace("{{LINES}}",    htmlEscape(_nvs.getLineNumbers()));
+    page.replace("{{ROUTES}}",   htmlEscape(_nvs.getRoutes()));
     page.replace("{{STATUS}}",   statusMsg);
 
     return page;

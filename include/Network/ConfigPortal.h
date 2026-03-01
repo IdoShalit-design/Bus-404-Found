@@ -9,7 +9,7 @@
 
 #define AP_SSID          "Bus-404-Setup"
 #define MDNS_HOSTNAME    "bus"
-#define SETUP_TIMEOUT_SEC 10
+#define SETUP_TIMEOUT_SEC 20
 #define DNS_PORT          53
 #define WEB_SERVER_PORT          80
 #define AP_STABILIZE_DELAY_MS   100

@@ -3,6 +3,11 @@
 
 #include <Preferences.h>
 #include <Arduino.h>
+#include "Structs.h"
+
+#define MAX_NVS_TARGETS 6    // Max bus targets loadable from NVS
+#define NVS_STOP_ID_LEN 16
+#define NVS_LINE_LEN    8
 
 /**
  * @brief Manages persistent storage of configuration data using ESP32 NVS.
@@ -25,13 +30,30 @@ public:
     bool hasWiFiCredentials();
 
     // --- Bus Display Settings ---
+    String getRoutes();
+    void setRoutes(const String& routes);
+
+    // Legacy getters (for backward compatibility)
     String getStopID();
     String getLineNumbers();
-    void setStopID(const String& stopId);
-    void setLineNumbers(const String& lines);
+
+    /**
+     * @brief Parses NVS stop ID and line numbers into a BusTarget array.
+     * @param targets Output array to populate (must have room for MAX_NVS_TARGETS).
+     * @param maxTargets Maximum number of targets to fill.
+     * @return Number of targets populated, or 0 if NVS has no bus settings.
+     */
+    int loadTargets(BusTarget* targets, int maxTargets);
+
+    /** @brief Returns the persistent stop ID buffer for a given index (valid after loadTargets). */
+    const char* getLoadedStopId(int index = 0) const { return _stopIdBufs[index]; }
 
 private:
     Preferences _prefs;
+
+    // Persistent string buffers - pointers in BusTarget point into these
+    char _stopIdBufs[MAX_NVS_TARGETS][NVS_STOP_ID_LEN];
+    char _lineBufs[MAX_NVS_TARGETS][NVS_LINE_LEN];
 };
 
 #endif // NVS_MANAGER_H
