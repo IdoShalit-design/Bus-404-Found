@@ -49,6 +49,8 @@ void NetworkManager::print_networks() {
         Serial.println(WiFi.channel(i));
     }
     Serial.println("-----------------------");
+
+    WiFi.scanDelete();
 }
 
 void NetworkManager::print_wifi_status() {
