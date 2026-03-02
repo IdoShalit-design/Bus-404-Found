@@ -102,6 +102,18 @@ void HUB75Display::setBrightness(uint8_t brightness) {
     }
 }
 
+void HUB75Display::showMessage(const char* msg) {
+    if (!_matrix) return;
+    _matrix->fillScreen(0);
+    _matrix->setTextSize(1);
+    _matrix->setTextColor(_matrix->color565(255, 255, 255));
+    int len = strlen(msg);
+    int x = (DISPLAY_WIDTH - len * FONT_CHAR_W) / 2;
+    int y = (DISPLAY_HEIGHT - 8) / 2;  // 8px font height
+    _matrix->setCursor(x, y);
+    _matrix->print(msg);
+}
+
 // =========================================
 // Screen Debug Tests
 // =========================================
