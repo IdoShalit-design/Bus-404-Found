@@ -29,17 +29,16 @@ public:
 
     /**
      * @brief Gets the current time formatted as a string
-     * @param buf Output buffer (must be at least 6 bytes for "HH:MM\0")
-     * @param len Size of the output buffer
+     * @return String (HH:MM)
      */
-    void get_formatted_time(char* buf, size_t len);
+    String get_formatted_time();
 
     /**
     * @brief Calculates minutes remaining until a given ETA
-    * @param eta C-string in format "HH:MM"
+    * @param eta String in format "HH:MM"
     * @return int minutes remaining (negative if bus already passed)
     */
-    int get_minutes_until(const char* eta);
+    int get_minutes_until(String eta);
 };
 
 #endif

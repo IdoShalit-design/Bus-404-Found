@@ -28,23 +28,23 @@ bool TimeManager::is_time_set() {
     return getLocalTime(&timeinfo); // Returns true if sync happened
 }
 
-void TimeManager::get_formatted_time(char* buf, size_t len) {
+String TimeManager::get_formatted_time() {
     struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        strncpy(buf, "00:00", len);
-        buf[len - 1] = '\0';
-        return;
-    }
-    snprintf(buf, len, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    if (!getLocalTime(&timeinfo)) return "00:00";
+    
+    char buf[6];
+    sprintf(buf, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    return String(buf);
+
 }
 
-    int TimeManager::get_minutes_until(const char* eta) {
+    int TimeManager::get_minutes_until(String eta) {
         struct tm now_tm;
         if (!getLocalTime(&now_tm)) return -1; // Error if time not synced
 
         // 1. Parse the ETA string (HH:MM)
-        int eta_hour = (eta[0] - '0') * 10 + (eta[1] - '0');
-        int eta_min  = (eta[3] - '0') * 10 + (eta[4] - '0');
+        int eta_hour = eta.substring(0, 2).toInt();
+        int eta_min = eta.substring(3, 5).toInt();
 
         // 2. Create a tm struct for the ETA (based on today's date)
         struct tm eta_tm = now_tm; 
