@@ -4,6 +4,9 @@
 # Private secrets (DO NOT COMMIT)
 include/Secrets.h
 
+# Heap log from UDP listener
+heap_log.txt
+
 # Compiled Object files
 *.slo
 *.lo
