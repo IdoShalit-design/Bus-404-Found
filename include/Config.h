@@ -6,7 +6,7 @@
 // --- Debug Flags ---
 #define SCREEN_DEBUG 0     // Set to 1 to run display color tests (blocks forever)
 #define DUMMY_BUSES_DEBUG 0    // Set to 1 to skip fetching and render dummy bus data
-#define MEMORY_DEBUG         1  // Set to 1 to log heap memory usage to LittleFS (heap_log.txt)
+#define MEMORY_DEBUG         0  // Set to 1 to log heap memory usage to LittleFS (heap_log.txt)
 
 // --- Dummy bus data (used when DUMMY_BUSES_DEBUG == 1) ---
 #if DUMMY_BUSES_DEBUG
