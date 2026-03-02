@@ -6,7 +6,7 @@
 [![PlatformIO](https://img.shields.io/badge/Built%20with-PlatformIO-orange)](https://platformio.org/)
 [![ESP32-S3](https://img.shields.io/badge/Board-ESP32--S3-blue)](https://www.espressif.com/en/products/socs/esp32-s3)
 
-![Bus-404-Found in action](hero_picutre.jpeg)
+![Bus-404-Found in action](image.png)
 
 ---
 
