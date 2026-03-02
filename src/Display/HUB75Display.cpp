@@ -203,11 +203,13 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
         _matrix->setCursor(XCOL_MINUTES, y + 1);
         _matrix->printf("%d", target.minutes_remaining);
     }
-
-    int currentX = _matrix->getCursorX();
-
-    _matrix->drawPixel(currentX + 1, y + 1, minutesColor);
-    _matrix->drawPixel(currentX + 1, y + 2, minutesColor);
+    
+    //draw: '
+    if(target.minutes_remaining < 10 || target.no_data) {
+        int currentX = _matrix->getCursorX();
+        _matrix->drawPixel(currentX + 1, y + 1, minutesColor);
+        _matrix->drawPixel(currentX + 1, y + 2, minutesColor);
+    }
 
     drawIcon(XCOL_IMAGE_START, y, minutesColor);
 }

@@ -9,8 +9,6 @@
 #include "TimeManager.h"
 #include <WiFiUdp.h>
 
-#define HEAP_UDP_PORT 12345   // UDP port for heap reports on PC
-
 // =========================================
 // Global instances
 // =========================================
@@ -28,6 +26,7 @@ BusTarget bus_targets[TARGETS_COUNT];
 // Update interval (milliseconds)
 unsigned long last_fetch_time = 0;
 unsigned long last_heap_log_time = 0;  // Timestamp of last heap log write
+bool wifi_disconnected_msg_flag = false; // Set when WiFi loss is detected, cleared after UDP report
 
 /**
  * @brief Creates the appropriate IBusFetcher based on FETCHER_TYPE config.
@@ -53,13 +52,16 @@ IBusFetcher* createFetcher() {
  */
 void sendHeapUDP() {
     WiFiUDP udp;
-    char buf[128];
+    char buf[192];
     uint32_t freeHeap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
     uint32_t minFreeHeap = ESP.getMinFreeHeap();
     int rssi = WiFi.RSSI();
-    snprintf(buf, sizeof(buf), "Time: %lu, Free: %u, MinFree: %u, WiFi: %s, RSSI: %d",
+    const char* warnMsg = wifi_disconnected_msg_flag ? ", WARN: internet disconnected" : "";
+    bool connected = (WiFi.status() == WL_CONNECTED);
+    snprintf(buf, sizeof(buf), "Time: %lu, Free: %u, MinFree: %u, WiFi: %s, RSSI: %d%s",
              millis() / 1000, freeHeap, minFreeHeap,
-             (WiFi.status() == WL_CONNECTED) ? "OK" : "DOWN", rssi);
+             connected ? "OK" : "DOWN", rssi, warnMsg);
+    if (connected) wifi_disconnected_msg_flag = false;  // Only clear if packet will actually be sent
 
     udp.beginPacket(COMPUTER_IP, HEAP_UDP_PORT);
     udp.print(buf);
@@ -75,6 +77,7 @@ void sendHeapUDP() {
 bool ensureWiFi() {
     if (WiFi.status() == WL_CONNECTED) return true;
 
+    wifi_disconnected_msg_flag = true;
     Serial.println("[WiFi] Disconnected, attempting reconnect...");
     WiFi.disconnect();
     WiFi.begin(WIFI_CREDENTIALS.ssid, WIFI_CREDENTIALS.password);
