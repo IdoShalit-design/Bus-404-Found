@@ -40,6 +40,12 @@ public:
      * @param brightness Value from 0 (off) to 255 (max).
      */
     virtual void setBrightness(uint8_t brightness) = 0;
+
+    /**
+     * @brief Displays a centered status message on the screen.
+     * @param msg The message string to display.
+     */
+    virtual void showMessage(const char* msg) = 0;
 };
 
 #endif // IRENDERER_H

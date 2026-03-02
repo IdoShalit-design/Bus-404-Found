@@ -162,6 +162,12 @@ public:
     void setBrightness(uint8_t brightness) override;
 
     /**
+     * @brief Displays a centered status message on the screen.
+     * @param msg The message string to display.
+     */
+    void showMessage(const char* msg) override;
+
+    /**
      * @brief Runs a series of display tests for debugging.
      * Tests: fill colors, pixel walk, text rendering, pin report.
      * Blocks indefinitely (loops tests forever).
