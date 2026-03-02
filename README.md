@@ -6,9 +6,7 @@
 [![PlatformIO](https://img.shields.io/badge/Built%20with-PlatformIO-orange)](https://platformio.org/)
 [![ESP32-S3](https://img.shields.io/badge/Board-ESP32--S3-blue)](https://www.espressif.com/en/products/socs/esp32-s3)
 
-<!-- Uncomment when you have a photo:
-![Bus-404-Found in action](docs/demo.jpg)
--->
+![Bus-404-Found in action](hero_picutre.jpeg)
 
 ---
 
@@ -22,7 +20,7 @@
 | 🟡 Yellow | Scheduled time (no GPS) |
 | 🔴 Red | No data |
 | ⬜ White | Destination name |
-| 🔵 Cyan | bus line-number |
+| 🔵 Cyan | bus |
 
 Each row on the display shows: **Line number → Destination → Minutes remaining + bus icon**.
 
@@ -33,23 +31,26 @@ Each row on the display shows: **Line number → Destination → Minutes remaini
 - **Real-time bus arrivals** — fetched every 30 seconds (configurable)
 - **Color-coded statuses** — instantly see if data is live GPS or just a schedule
 - **Multi-target tracking** — monitor multiple bus lines/stops simultaneously
-- **Auto-reconnect** — recovers gracefully from Wi-Fi drops
-- **NTP time sync** — always shows accurate local time
 - **Extensible architecture** — interfaces for display (`IRenderer`) and data source (`IBusFetcher`), ready for OLED/LCD displays or alternative APIs
-- **Memory diagnostics** — optional UDP heap reporting for debugging
+- **Memory & connection diagnostics** — optional UDP heap reporting for debugging
 - **Debug modes** — screen test mode, dummy data mode for development without Wi-Fi
 
 ---
 
 ## Hardware Requirements
+this is very flexable. I tried my best to make the code as flexible as possible.
+for example: you may choose yo use different configuration of displays only by
+changing single macro, chnage wires configuration the same way, or choose
+completly different hardware without changing core code thanks to interface 
+"Irenderer" 
 
 | Component | Details | Qty |
 |-----------|---------|-----|
-| ESP32-S3 DevKitC-1 | With PSRAM (WROOM-1 recommended) | 1 |
-| HUB75 LED Matrix Panel | 64×32 pixels, 1/16 scan | 2 |
+| ESP32-S3 DevKitC-1 | Also ESP32 should work | 1 |
+| HUB75 LED Matrix Panel | 64×32 pixels, 1/16 scan | 1 or 2 supported |
 | 5V Power Supply | ≥4A recommended for two panels | 1 |
 | Jumper Wires / Ribbon Cable | For ESP32 ↔ HUB75 wiring | — |
-| USB-C Cable | For programming & serial monitor | 1 |
+| USB-A Cable | For programming & serial monitor | 1 |
 
 ---
 
@@ -73,6 +74,11 @@ Each row on the display shows: **Line number → Destination → Minutes remaini
 | CLK | 41 |
 
 > **Note:** The two panels are daisy-chained via the HUB75 output→input ribbon cable. Only the first panel connects to the ESP32.
+
+use the next picture from https://github.com/CruiseandCoffee that might help 
+with wiring:
+
+![HUB75 Wiring](hub75wiring.png)
 
 ---
 
@@ -250,9 +256,7 @@ python udp_listener.py
 ## Future Plans
 
 - 🔌 Additional data sources (Gov.il GTFS-RT, SIRI API)
-- 🖥️ Web configuration portal (Wi-Fi setup, target editor)
-- 📐 3D-printable enclosure
-- 🔔 Alerts when a bus is approaching
+- 📡 Wireless connection to choose new bus lines
 
 ---
 
