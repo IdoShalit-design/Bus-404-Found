@@ -158,12 +158,11 @@ All configuration lives in `include/Config.h`:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `FETCH_INTERVAL` | `30000` (30s) | How often to fetch new arrivals (ms) |
 | `TIME_ZONE` | `"IST-2IDT,M3.4.4/26,M10.5.0"` | POSIX timezone string (default: Israel) |
 | `FETCHER_TYPE` | `FETCHER_CURLBUS` | Data source (`FETCHER_CURLBUS`, future: `FETCHER_GOVIL`, `FETCHER_MOCK`) |
 | `SCREEN_DEBUG` | `0` | Set to `1` to run infinite display test patterns |
 | `DUMMY_BUSES_DEBUG` | `0` | Set to `1` to render dummy data without Wi-Fi |
-| `MEMORY_DEBUG` | `1` | Set to `1` to send heap stats via UDP every 60s |
+| `MEMORY_DEBUG` | `0` | Set to `1` to send heap stats via UDP every 60s |
 
 Display settings are in `include/Display/HUB75Display.h`:
 
