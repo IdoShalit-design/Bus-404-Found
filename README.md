@@ -20,9 +20,9 @@
 |-------|---------|
 | 🟢 Green | Real-time GPS tracking (live) |
 | 🟡 Yellow | Scheduled time (no GPS) |
-| 🔴 Red | No data / arriving now |
+| 🔴 Red | No data |
 | ⬜ White | Destination name |
-| 🔵 Cyan | Current time |
+| 🔵 Cyan | bus line-number |
 
 Each row on the display shows: **Line number → Destination → Minutes remaining + bus icon**.
 
