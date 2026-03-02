@@ -102,21 +102,16 @@ void HUB75Display::setBrightness(uint8_t brightness) {
     }
 }
 
-void HUB75Display::showStatus(const char* text) {
+void HUB75Display::showMessage(const char* msg) {
     if (!_matrix) return;
-
     _matrix->fillScreen(0);
     _matrix->setTextSize(1);
-    _matrix->setTextColor(_matrix->color565(0, 255, 128)); // Bright green
-
-    // Center text on display
-    int textLen = strlen(text);
-    int x = (DISPLAY_WIDTH - textLen * FONT_CHAR_W) / 2;
-    int y = (DISPLAY_HEIGHT - 8) / 2;  // Font height ~8px at size 1
-    if (x < 0) x = 0;
-
+    _matrix->setTextColor(_matrix->color565(255, 255, 255));
+    int len = strlen(msg);
+    int x = (DISPLAY_WIDTH - len * FONT_CHAR_W) / 2;
+    int y = (DISPLAY_HEIGHT - 8) / 2;  // 8px font height
     _matrix->setCursor(x, y);
-    _matrix->print(text);
+    _matrix->print(msg);
 }
 
 // =========================================
@@ -183,18 +178,14 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     _matrix->print(target.line);
 
     // --- Destination (white) ---
+    String destStr = String(target.destination);
+    if (destStr.length() > MAX_DEST_CHARS) {
+        destStr = destStr.substring(0, MAX_DEST_CHARS);
+    }
+
     _matrix->setTextColor(COLOR_DEST);
     _matrix->setCursor(XCOL_DEST, y + 1);
-
-    size_t destLen = strnlen(target.destination, sizeof(target.destination));
-    if (destLen <= MAX_DEST_CHARS) {
-        _matrix->print(target.destination);
-    } else {
-        char truncated[MAX_DEST_CHARS + 1];
-        strncpy(truncated, target.destination, MAX_DEST_CHARS);
-        truncated[MAX_DEST_CHARS] = '\0';
-        _matrix->print(truncated);
-    }
+    _matrix->print(destStr);
 
     // --- Minutes remaining ---
     // No data: red "--"
@@ -213,10 +204,10 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
         _matrix->printf("%d", target.minutes_remaining);
     }
 
-    if(target.minutes_remaining  < 10){
-        int currentX = _matrix->getCursorX();
-        _matrix->drawPixel(currentX + 1, y + 1, minutesColor);
-        _matrix->drawPixel(currentX + 1, y + 2, minutesColor);
-    }
+    int currentX = _matrix->getCursorX();
+
+    _matrix->drawPixel(currentX + 1, y + 1, minutesColor);
+    _matrix->drawPixel(currentX + 1, y + 2, minutesColor);
+
     drawIcon(XCOL_IMAGE_START, y, minutesColor);
 }

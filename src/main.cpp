@@ -1,21 +1,19 @@
 #include <Arduino.h>
-#include "Network/NetworkManager.h"
+#include <WiFi.h>
 #include "Network/IBusFetcher.h"
 #include "Network/CurlBusFetcher.h"
-#include "Network/ConfigPortal.h"
 #include "Display/IRenderer.h"
 #include "Display/HUB75Display.h"
-#include "NVSManager.h"
 #include "Config.h"
 #include "Structs.h"
 #include "TimeManager.h"
+#include <WiFiUdp.h>
 
-#define FETCH_INTERVAL 30000  // 30 seconds
+#define HEAP_UDP_PORT 12345   // UDP port for heap reports on PC
 
 // =========================================
 // Global instances
 // =========================================
-TimeManager time_manager(TIME_ZONE);
 
 // Display renderer
 IRenderer* renderer = nullptr;
@@ -23,15 +21,13 @@ IRenderer* renderer = nullptr;
 // Generic fetcher pointer - concrete type determined by FETCHER_TYPE in Config.h
 IBusFetcher* bus_fetcher = nullptr;
 
-// NVS and configuration portal
-NVSManager nvs_manager;
-ConfigPortal* config_portal = nullptr;
-
 // Mutable copy of bus targets (original is const)
 BusTarget bus_targets[TARGETS_COUNT];
 
+
 // Update interval (milliseconds)
 unsigned long last_fetch_time = 0;
+unsigned long last_heap_log_time = 0;  // Timestamp of last heap log write
 
 /**
  * @brief Creates the appropriate IBusFetcher based on FETCHER_TYPE config.
@@ -52,20 +48,65 @@ IBusFetcher* createFetcher() {
     #endif
 }
 
+/**
+ * @brief Sends current heap memory status via UDP to COMPUTER_IP.
+ */
+void sendHeapUDP() {
+    WiFiUDP udp;
+    char buf[128];
+    uint32_t freeHeap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    uint32_t minFreeHeap = ESP.getMinFreeHeap();
+    int rssi = WiFi.RSSI();
+    snprintf(buf, sizeof(buf), "Time: %lu, Free: %u, MinFree: %u, WiFi: %s, RSSI: %d",
+             millis() / 1000, freeHeap, minFreeHeap,
+             (WiFi.status() == WL_CONNECTED) ? "OK" : "DOWN", rssi);
+
+    udp.beginPacket(COMPUTER_IP, HEAP_UDP_PORT);
+    udp.print(buf);
+    udp.endPacket();
+
+    Serial.printf("[HeapUDP] %s\n", buf);
+}
+
+/**
+ * @brief Ensures WiFi is connected. Attempts reconnection if disconnected.
+ * @return true if connected, false if reconnection failed.
+ */
+bool ensureWiFi() {
+    if (WiFi.status() == WL_CONNECTED) return true;
+
+    Serial.println("[WiFi] Disconnected, attempting reconnect...");
+    WiFi.disconnect();
+    WiFi.begin(WIFI_CREDENTIALS.ssid, WIFI_CREDENTIALS.password);
+
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.printf("[WiFi] Reconnected! IP: %s\n", WiFi.localIP().toString().c_str());
+        return true;
+    }
+    Serial.println("[WiFi] Reconnect failed.");
+    return false;
+}
+
 void setup() {
   // Initialize serial for output
   Serial.begin(115200);
+  Serial.printf("Computer IP Address: %s\n", COMPUTER_IP);
 
   // =========================================
-  // 1. Initialize display and show boot message
+  // 1. Initialize display (first — show Loading... ASAP)
   // =========================================
   renderer = new HUB75Display();
-  if (!renderer->init()) {
-    Serial.println("[Main] Display initialization failed!");
-  } else {
-    Serial.println("[Main] Display initialized successfully");
-    renderer->showStatus("BOOTING...");
-  }
+  renderer->init();
+  Serial.println("[Main] Display initialized successfully");
+  renderer->showMessage("Loading...");
+  
 
   // If SCREEN_DEBUG is enabled, run display tests and never return
   #if SCREEN_DEBUG
@@ -74,14 +115,46 @@ void setup() {
     // screen_tests() never returns
   #endif
 
+  #if !DUMMY_BUSES_DEBUG
   // =========================================
-  // 2. Initialize NVS
+  // 2. Initialize WiFi
   // =========================================
-  nvs_manager.begin();
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_CREDENTIALS.ssid, WIFI_CREDENTIALS.password);
+
+  Serial.printf("Connecting to %s", WIFI_CREDENTIALS.ssid);
+  unsigned long wifiStart = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 20000) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("Connected! IP: %s, RSSI: %d dBm\n",
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  } else {
+    Serial.println("WiFi connection failed!");
+  }
+
+  // =========================================
+  // 3. Synchronize clock
+  // =========================================
+  time_init_and_sync(TIME_ZONE);
+  char time_buf[6];
+  time_get_formatted(time_buf, sizeof(time_buf));
+  Serial.print("The time now is: ");
+  Serial.println(time_buf);
+
+  // =========================================
+  // 4. Initialize bus fetcher
+  // =========================================
+  bus_fetcher = createFetcher();
+  #else
+  Serial.println("[Main] DUMMY_BUSES_DEBUG enabled - skipping WiFi, NTP and fetcher");
+  #endif
 
   #if DUMMY_BUSES_DEBUG
-  Serial.println("[Main] DUMMY_BUSES_DEBUG enabled - skipping WiFi, NTP and fetcher");
-
   // Load dummy targets and render immediately, no fetch needed
   Serial.println("[Main] Rendering dummy bus data...");
   for (int i = 0; i < DUMMY_TARGETS_COUNT; i++) {
@@ -91,126 +164,20 @@ void setup() {
     renderer->render(bus_targets, DUMMY_TARGETS_COUNT);
   }
   #else
-  // =========================================
-  // 3. Start Access Point for setup window
-  // =========================================
-  config_portal = new ConfigPortal(nvs_manager);
-  config_portal->startAP();
-
-  bool clientConnected = false;
-  for (int i = SETUP_TIMEOUT_SEC; i > 0; i--) {
-    char msg[20];
-    snprintf(msg, sizeof(msg), "SETUP? %ds...", i);
-    if (renderer) renderer->showStatus(msg);
-
-    // Check for AP client connections 10 times per second
-    for (int j = 0; j < (1000 / AP_CHECK_INTERVAL_MS); j++) {
-      if (config_portal->hasClientConnected()) {
-        clientConnected = true;
-        break;
-      }
-      delay(AP_CHECK_INTERVAL_MS);
-    }
-    if (clientConnected) break;
-  }
-
-  if (clientConnected) {
-    // =========================================
-    // 4a. Client connected — stay in AP mode
-    // =========================================
-    Serial.println("[Main] Client connected to AP — entering config mode");
-    if (renderer) renderer->showStatus("AP CONFIG");
-    config_portal->startWebServer();
-    // loop() will handle web server requests; bus fetching is skipped.
-    return;
-  }
-
-  // =========================================
-  // 4b. No client — close AP, connect to WiFi
-  // =========================================
-  config_portal->stopAP();
-
-  // Get credentials: NVS first, then compile-time fallback
-  String ssid = nvs_manager.getSSID();
-  String password = nvs_manager.getPassword();
-
-  if (ssid.length() == 0) {
-    ssid = WIFI_CREDENTIALS.ssid;
-    password = WIFI_CREDENTIALS.password;
-    Serial.println("[Main] Using fallback WiFi credentials from config");
-  } else {
-    Serial.println("[Main] Using WiFi credentials from NVS");
-  }
-
-  if (renderer) renderer->showStatus("Connecting...");
-
-  WifiCredentials credentials(ssid.c_str(), password.c_str());
-  NetworkManager network_manager(credentials);
-
-  network_manager.print_networks();
-  bool connected = network_manager.connect_to_wifi();
-
-  if (connected) {
-    Serial.printf("Successfully connected to %s\n", ssid.c_str());
-    network_manager.print_wifi_status();
-
-    if (renderer) renderer->showStatus("WiFi OK");
-    delay(1000);
-
-    // Show IP address
-    String ipStr = WiFi.localIP().toString();
-    if (renderer) renderer->showStatus(ipStr.c_str());
-    delay(2000);
-
-    // Start mDNS and web server (remain active for settings changes)
-    config_portal->startMDNS();
-    config_portal->startWebServer();
-
-    if (renderer) renderer->showStatus("bus.local");
-    delay(1000);
-  } else {
-    Serial.printf("Failed to connect to %s\n", ssid.c_str());
-    network_manager.print_wifi_status();
-    if (renderer) renderer->showStatus("WiFi FAIL");
-    delay(3000);
-  }
-
-  // =========================================
-  // 5. Synchronize clock
-  // =========================================
-  time_manager.init_and_sync();
-  Serial.println("The time now is:");
-  char timeBuf[6];
-  time_manager.get_formatted_time(timeBuf, sizeof(timeBuf));
-  Serial.println(timeBuf);
-
-  // =========================================
-  // 6. Initialize bus fetcher
-  // =========================================
-  bus_fetcher = createFetcher();
-
   // Copy const targets to mutable array
   for (int i = 0; i < TARGETS_COUNT; i++) {
     bus_targets[i] = MY_TARGETS[i];
   }
   Serial.printf("[Main] Tracking %d bus targets\n", TARGETS_COUNT);
   #endif
+
+  #ifdef MEMORY_DEBUG
+  Serial.printf("[Main] Heap reports will be sent via UDP to %s:%d\n", COMPUTER_IP, HEAP_UDP_PORT);
+  #endif
+
 }
 
 void loop() {
-  // =========================================
-  // Handle web server requests (AP or STA mode)
-  // =========================================
-  if (config_portal) {
-    config_portal->handleClient();
-  }
-
-  // In AP config mode, only serve the web interface
-  if (config_portal && config_portal->isAPMode()) {
-    delay(10);
-    return;
-  }
-
   #if DUMMY_BUSES_DEBUG
   // Nothing to do - dummy data already rendered in setup()
   delay(1000);
@@ -224,32 +191,44 @@ void loop() {
   
   if (last_fetch_time == 0 || (now - last_fetch_time >= FETCH_INTERVAL)) {
     last_fetch_time = now ? now : 1;  // Avoid 0 to prevent re-trigger
-    
-    Serial.println("\n--- Fetching bus arrivals ---");
-    char timeBuf[6];
-    time_manager.get_formatted_time(timeBuf, sizeof(timeBuf));
-    Serial.println(timeBuf);
-    
-    for (int i = 0; i < TARGETS_COUNT; i++) {
-      bool success = bus_fetcher->update(bus_targets[i]);
-      bus_targets[i].no_data = !success;
+
+    if (!ensureWiFi()) {
+      Serial.println("[Main] No WiFi - skipping fetch");
+      if (renderer) renderer->showMessage("No WiFi");
+    } else {
+      Serial.println("\n--- Fetching bus arrivals ---");
+      char fetch_time_buf[6];
+      time_get_formatted(fetch_time_buf, sizeof(fetch_time_buf));
+      Serial.println(fetch_time_buf);
       
-      if (success) {
-        Serial.printf("Line %s: %s (%d min) %s\n", 
-                      bus_targets[i].line,
-                      bus_targets[i].last_known_ETA,
-                      bus_targets[i].minutes_remaining,
-                      bus_targets[i].is_realtime ? "[LIVE]" : "[SCHED]");
-      } else {
-        Serial.printf("Line %s: No data\n", bus_targets[i].line);
+      for (int i = 0; i < TARGETS_COUNT; i++) {
+        bool success = bus_fetcher->update(bus_targets[i]);
+        bus_targets[i].no_data = !success;
+        
+        if (success) {
+          Serial.printf("Line %s: %s (%d min) %s\n", 
+                        bus_targets[i].line,
+                        bus_targets[i].last_known_ETA,
+                        bus_targets[i].minutes_remaining,
+                        bus_targets[i].is_realtime ? "[LIVE]" : "[SCHED]");
+        } else {
+          Serial.printf("Line %s: No data\n", bus_targets[i].line);
+        }
+      }
+      Serial.println("-----------------------------");
+
+      // Update display with new data
+      if (renderer) {
+        renderer->render(bus_targets, TARGETS_COUNT);
       }
     }
-    Serial.println("-----------------------------");
-    Serial.printf("[Main] Free heap: %u bytes\n", ESP.getFreeHeap());
-
-    // Update display with new data
-    if (renderer) {
-      renderer->render(bus_targets, TARGETS_COUNT);
-    }
   }
+
+  #ifdef MEMORY_DEBUG
+  if (millis() - last_heap_log_time >= 60000UL) {
+    last_heap_log_time = millis();
+    sendHeapUDP();
+  }
+  #endif
 }
+

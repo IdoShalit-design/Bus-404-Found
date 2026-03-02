@@ -1,18 +1,12 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 #include "Structs.h"
-
-// Include WiFi credentials if available (not committed to git)
-#if __has_include("Secrets.h")
-    #include "Secrets.h"
-#else
-    // Default empty credentials — NVS or AP setup will provide them
-    constexpr WifiCredentialsData WIFI_CREDENTIALS = {"", ""};
-#endif
+#include "Secrets.h"  // WiFi credentials (not committed to git)
 
 // --- Debug Flags ---
-#define SCREEN_DEBUG       0  // Set to 1 to run display color tests (blocks forever)
-#define DUMMY_BUSES_DEBUG  0  // Set to 1 to skip fetching and render dummy bus data
+#define SCREEN_DEBUG 0     // Set to 1 to run display color tests (blocks forever)
+#define DUMMY_BUSES_DEBUG 0    // Set to 1 to skip fetching and render dummy bus data
+#define MEMORY_DEBUG         1  // Set to 1 to log heap memory usage to LittleFS (heap_log.txt)
 
 // --- Dummy bus data (used when DUMMY_BUSES_DEBUG == 1) ---
 #if DUMMY_BUSES_DEBUG
@@ -38,6 +32,9 @@ const int DUMMY_TARGETS_COUNT = sizeof(DUMMY_TARGETS) / sizeof(DUMMY_TARGETS[0])
 
 #define FETCHER_TYPE FETCHER_CURLBUS
 
+#define FETCH_INTERVAL 30000  // 30 seconds
+
+
 // --- Bus Targets ---
 const BusTarget MY_TARGETS[] = {
     {"1570", "7",  "END LINE", false, "", 0},   // Line 7 at Bezalel/Trumpeldor → Givat Ram
@@ -49,5 +46,10 @@ const int TARGETS_COUNT = sizeof(MY_TARGETS) / sizeof(MY_TARGETS[0]);
 
 // ------------- API'S address ---------------- //
 
+// PC_IP_ADDRESS is injected at build time by get_ip.py (your machine's LAN IP)
+#ifndef PC_IP_ADDRESS
+#define PC_IP_ADDRESS "127.0.0.1"  // Fallback if not set by build script
+#endif
+#define COMPUTER_IP PC_IP_ADDRESS
 
 #endif
