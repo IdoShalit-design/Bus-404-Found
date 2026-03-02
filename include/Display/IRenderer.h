@@ -40,13 +40,6 @@ public:
      * @param brightness Value from 0 (off) to 255 (max).
      */
     virtual void setBrightness(uint8_t brightness) = 0;
-
-    /**
-     * @brief Displays a centered status message on the display.
-     * Used during boot sequence and configuration flow.
-     * @param text The status text to display.
-     */
-    virtual void showStatus(const char* text) = 0;
 };
 
 #endif // IRENDERER_H

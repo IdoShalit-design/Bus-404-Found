@@ -162,12 +162,6 @@ public:
     void setBrightness(uint8_t brightness) override;
 
     /**
-     * @brief Displays a centered status message on the matrix.
-     * @param text The status text to display.
-     */
-    void showStatus(const char* text) override;
-
-    /**
      * @brief Runs a series of display tests for debugging.
      * Tests: fill colors, pixel walk, text rendering, pin report.
      * Blocks indefinitely (loops tests forever).

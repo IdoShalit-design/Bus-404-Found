@@ -1,14 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 #include "Structs.h"
-
-// Include WiFi credentials if available (not committed to git)
-#if __has_include("Secrets.h")
-    #include "Secrets.h"
-#else
-    // Default empty credentials — NVS or AP setup will provide them
-    constexpr WifiCredentialsData WIFI_CREDENTIALS = {"", ""};
-#endif
+#include "Secrets.h"  // WiFi credentials (not committed to git)
 
 // --- Debug Flags ---
 #define SCREEN_DEBUG       0  // Set to 1 to run display color tests (blocks forever)
