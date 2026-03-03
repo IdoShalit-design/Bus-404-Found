@@ -69,16 +69,6 @@
 // Monochrome bus icon bitmap, ICON_W x ICON_H pixels.
 // Each byte = one row; bit 7 is the leftmost pixel.
 
-// static const uint8_t BUS_ICON[ICON_H] = {
-// 0b00000000,  // ........
-//     0b11110000,  // ####....
-//     0b11111000,  // #####...
-//     0b00011100,  // ...###..
-//     0b11001110,  // ##..###.
-//     0b00100110,  // ..#..##.
-//     0b10010110,  // #..#..##.
-//     0b11010110   // ##.#..##.
-//     };
 
 static const uint8_t BUS_ICON[ICON_H] = {
     0b00000000,  // ........
@@ -89,6 +79,17 @@ static const uint8_t BUS_ICON[ICON_H] = {
     0b00100100,  // ..#..#..
     0b10010100,  // #..#.#..
     0b11010100   // ##.#.#..
+    };
+
+static const uint8_t ARRIVING_ICON[ICON_H] = {
+    0b00011000,  // ...##...
+    0b00011000,  // ...##...
+    0b00011000,  // ...##...
+    0b11111111,  // ########
+    0b11111111,  // ########
+    0b01111110,  // .######.
+    0b00111100,  // ..####..
+    0b00011000   // ...##...
     };
 
 
@@ -123,8 +124,9 @@ private:
      * @param x      Top-left X pixel.
      * @param y      Top-left Y pixel.
      * @param color  RGB565 color for lit pixels.
+     * @param bitmap Pointer to icon bitmap (defaults to BUS_ICON).
      */
-    void drawIcon(int x, int y, uint16_t color);
+    void drawIcon(int x, int y, uint16_t color, const uint8_t* bitmap);
 
 public:
     /**

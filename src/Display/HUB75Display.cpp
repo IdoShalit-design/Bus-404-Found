@@ -156,9 +156,9 @@ void HUB75Display::screen_tests() {
 // Private Methods
 // =========================================
 
-void HUB75Display::drawIcon(int x, int y, uint16_t color) {
+void HUB75Display::drawIcon(int x, int y, uint16_t color, const uint8_t* bitmap) {
     for (int row = 0; row < ICON_H; row++) {
-        uint8_t rowBits = BUS_ICON[row];
+        uint8_t rowBits = bitmap[row];
         for (int col = 0; col < ICON_W; col++) {
             if (rowBits & (0x80 >> col)) {
                 _matrix->drawPixel(x + col, y + row, color);
@@ -197,19 +197,24 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
         _matrix->setTextColor(minutesColor);
         _matrix->setCursor(XCOL_MINUTES, y + 1);
         _matrix->print("-");
-    } else {
+    } else if(target.minutes_remaining > 0) {
         minutesColor  = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
         _matrix->setTextColor(minutesColor);
         _matrix->setCursor(XCOL_MINUTES, y + 1);
         _matrix->printf("%d", target.minutes_remaining);
     }
+    else{
+        // minutes_remaining == 0: bus is arriving now
+        minutesColor = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
+        drawIcon(XCOL_MINUTES, y, minutesColor, ARRIVING_ICON);
+    }
     
     //draw: '
-    if(target.minutes_remaining < 10 || target.no_data) {
+    if(target.minutes_remaining > 0 && target.minutes_remaining < 10 && !target.no_data) {
         int currentX = _matrix->getCursorX();
         _matrix->drawPixel(currentX + 1, y + 1, minutesColor);
         _matrix->drawPixel(currentX + 1, y + 2, minutesColor);
     }
 
-    drawIcon(XCOL_IMAGE_START, y, minutesColor);
+    drawIcon(XCOL_IMAGE_START, y, minutesColor, BUS_ICON);
 }

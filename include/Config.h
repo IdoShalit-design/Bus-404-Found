@@ -15,8 +15,8 @@
 const BusTarget DUMMY_TARGETS[] = {
     // Real-time (live GPS), 5 minutes
     {"0000", "7",  "Givat Ram",  true,  "12:05", 5,  false},
-    // Scheduled (no GPS), 7 minutes
-    {"0000", "19", "Ein Kerem",  false, "12:07", 7,  false},
+    // Arriving now (0 minutes)
+    {"0000", "19", "Ein Kerem",  true,  "12:00", 0,  false},
     // No data returned from API
     {"0000", "72", "Romema",     false, "",       0,  true},
 };

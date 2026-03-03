@@ -190,7 +190,7 @@ bool CurlbusFetcher::update(BusTarget& bus) {
                 if (getLocalTime(&timeinfo)) {
                     int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
                     int etaMinutes = etaHour * 60 + etaMin;
-                    bus.minutes_remaining = etaMinutes - nowMinutes;
+                    bus.minutes_remaining = max(etaMinutes - nowMinutes - 1,0); // to avoid showing "1 min" when bus is actually arriving now (0 min)
                     
                     // Handle midnight crossing (e.g., now=23:50, eta=00:10)
                     if (bus.minutes_remaining < -720) {  // More than 12 hours negative
