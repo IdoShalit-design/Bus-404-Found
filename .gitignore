@@ -3,6 +3,8 @@
 
 # Private secrets (DO NOT COMMIT)
 include/Secrets.h
+config/wifi_credentials.json
+data/wifi_credentials.json
 
 # Heap log from UDP listener
 heap_log.txt

@@ -44,4 +44,13 @@ public:
     void print_wifi_status();
 };
 
+/**
+ * @brief Ensures WiFi is connected using provided credentials.
+ * @param ssid WiFi SSID.
+ * @param password WiFi password.
+ * @param timeoutMs Reconnect timeout in milliseconds.
+ * @return true if connected, false otherwise.
+ */
+bool ensureWiFiConnected(const char* ssid, const char* password, unsigned long timeoutMs = 10000);
+
 #endif

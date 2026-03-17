@@ -1,7 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 #include "Structs.h"
-#include "Secrets.h"  // WiFi credentials (not committed to git)
 
 // --- Debug Flags ---
 #define SCREEN_DEBUG 0     // Set to 1 to run display color tests (blocks forever)
@@ -35,16 +34,7 @@ const int DUMMY_TARGETS_COUNT = sizeof(DUMMY_TARGETS) / sizeof(DUMMY_TARGETS[0])
 #define FETCHER_TYPE FETCHER_CURLBUS
 
 #define FETCH_INTERVAL 30000  // 30 seconds
-
-
-// --- Bus Targets ---
-const BusTarget MY_TARGETS[] = {
-    {"1570", "7",  "END LINE", false, "", 0},   // Line 7 at Bezalel/Trumpeldor → Givat Ram
-    {"3541", "19", "END LINE", false, "", 0},  // Line 19 → Ein Kerem
-    {"6134", "72", "END LINE", false, "", 0}   // Line 72 → Romema
-};
-
-const int TARGETS_COUNT = sizeof(MY_TARGETS) / sizeof(MY_TARGETS[0]);
+#define MAX_RUNTIME_TARGETS 3
 
 // ------------- API'S address ---------------- //
 

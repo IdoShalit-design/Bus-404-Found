@@ -106,36 +106,51 @@ git clone https://github.com/IdoShalit-design/Bus-404-Found.git
 cd Bus-404-Found
 ```
 
-### 2. Create your secrets file
+### 2. Configure runtime JSON files
 
-```bash
-cp include/Secrets.h.example include/Secrets.h
+Runtime credentials and bus targets are read from files in `data/`:
+
+- `data/wifi_credentials.json`
+- `data/bus_targets.json`
+
+`data/wifi_credentials.json`
+
+```json
+{
+  "version": 1,
+  "ssid": "YOUR_WIFI_SSID",
+  "password": "YOUR_WIFI_PASSWORD"
+}
 ```
 
-Edit `include/Secrets.h` and fill in your Wi-Fi credentials:
+`data/bus_targets.json`
 
-```cpp
-constexpr WifiCredentialsData WIFI_CREDENTIALS = {
-    "your_wifi_name",      // SSID
-    "your_wifi_password"   // Password
-};
-```
-
-### 3. Configure your bus targets
-
-Open `include/Config.h` and edit the `MY_TARGETS` array with your station IDs and bus lines:
-
-```cpp
-const BusTarget MY_TARGETS[] = {
-    {"1570", "7",  "END LINE", false, "", 0},   // Line 7
-    {"3541", "19", "END LINE", false, "", 0},   // Line 19
-    {"6134", "72", "END LINE", false, "", 0},   // Line 72
-};
+```json
+{
+  "version": 1,
+  "targets": [
+    {
+      "stationId": "1570",
+      "line": "7",
+      "destination": "Givat Ram"
+    },
+    {
+      "stationId": "3541",
+      "line": "19",
+      "destination": "Ein Karem"
+    },
+    {
+      "stationId": "6134",
+      "line": "72",
+      "destination": "Har Hotzvim"
+    }
+  ]
+}
 ```
 
 > **Tip:** Find your station ID on [CurlBus](https://curlbus.app/) — it's the number in the URL when you look up a stop.
 
-### 4. Build & upload
+### 3. Build & upload
 
 ```bash
 # Build
@@ -143,6 +158,13 @@ pio run
 
 # Upload to ESP32
 pio run --target upload
+
+# Upload runtime JSON files from data/ to LittleFS
+pio run --target uploadfs
+
+# First-time setup (firmware + filesystem)
+pio run --target upload
+pio run --target uploadfs
 
 # Open serial monitor
 pio device monitor
@@ -154,7 +176,14 @@ Or use the PlatformIO sidebar buttons in VS Code.
 
 ## Configuration
 
-All configuration lives in `include/Config.h`:
+Source of truth:
+
+- `data/wifi_credentials.json` and `data/bus_targets.json`: Wi-Fi credentials and bus targets
+- `include/Config.h`: all other runtime settings
+
+Both runtime JSON files must include `"version": 1`.
+
+Settings that still come from `include/Config.h`:
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -178,9 +207,9 @@ Display settings are in `include/Display/HUB75Display.h`:
 ```
 Bus-404-Found/
 ├── include/
-│   ├── Config.h              # Main configuration (targets, intervals, debug flags)
-│   ├── Secrets.h              # Wi-Fi credentials (git-ignored)
-│   ├── Secrets.h.example      # Template for Secrets.h
+│   ├── Config.h              # Main non-JSON configuration (intervals, debug flags, fetcher)
+│   ├── Secrets.h              # Legacy file (not used in current runtime flow)
+│   ├── Secrets.h.example      # Legacy template (not used in current runtime flow)
 │   ├── Structs.h              # Shared data structures (BusTarget, WifiCredentialsData)
 │   ├── TimeManager.h          # NTP time sync utilities
 │   ├── Display/
@@ -202,6 +231,9 @@ Bus-404-Found/
 │       └── NetworkManager.cpp # Wi-Fi connection implementation
 ├── get_ip.py                  # Build script: injects PC LAN IP as build flag
 ├── udp_listener.py            # Helper: listens for heap debug UDP packets
+├── data/
+│   ├── wifi_credentials.json  # Runtime Wi-Fi credentials (uploaded via uploadfs)
+│   └── bus_targets.json       # Runtime bus targets (uploaded via uploadfs)
 ├── platformio.ini             # PlatformIO project config
 └── LICENSE                    # MIT License
 ```

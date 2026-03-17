@@ -2,12 +2,15 @@
 #include <WiFi.h>
 #include "Network/IBusFetcher.h"
 #include "Network/CurlBusFetcher.h"
+#include "Network/NetworkManager.h"
 #include "Display/IRenderer.h"
 #include "Display/HUB75Display.h"
 #include "Config.h"
 #include "Structs.h"
+#include "ConfigLoader.h"
 #include "TimeManager.h"
 #include <WiFiUdp.h>
+#include <cstring>
 
 // =========================================
 // Global instances
@@ -19,8 +22,13 @@ IRenderer* renderer = nullptr;
 // Generic fetcher pointer - concrete type determined by FETCHER_TYPE in Config.h
 IBusFetcher* bus_fetcher = nullptr;
 
-// Mutable copy of bus targets (original is const)
-BusTarget bus_targets[TARGETS_COUNT];
+// Runtime config loaded from LittleFS JSON files
+RuntimeConfig runtime_config;
+bool runtime_config_loaded = false;
+
+// Mutable bus targets used by fetcher and renderer
+BusTarget bus_targets[MAX_RUNTIME_TARGETS];
+int bus_targets_count = 0;
 
 
 // Update interval (milliseconds)
@@ -70,33 +78,6 @@ void sendHeapUDP() {
     Serial.printf("[HeapUDP] %s\n", buf);
 }
 
-/**
- * @brief Ensures WiFi is connected. Attempts reconnection if disconnected.
- * @return true if connected, false if reconnection failed.
- */
-bool ensureWiFi() {
-    if (WiFi.status() == WL_CONNECTED) return true;
-
-    wifi_disconnected_msg_flag = true;
-    Serial.println("[WiFi] Disconnected, attempting reconnect...");
-    WiFi.disconnect();
-    WiFi.begin(WIFI_CREDENTIALS.ssid, WIFI_CREDENTIALS.password);
-
-    unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println();
-
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("[WiFi] Reconnected! IP: %s\n", WiFi.localIP().toString().c_str());
-        return true;
-    }
-    Serial.println("[WiFi] Reconnect failed.");
-    return false;
-}
-
 void setup() {
   // Initialize serial for output
   Serial.begin(115200);
@@ -120,12 +101,50 @@ void setup() {
 
   #if !DUMMY_BUSES_DEBUG
   // =========================================
-  // 2. Initialize WiFi
+  // 2. Load runtime config from LittleFS (fail-fast)
   // =========================================
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_CREDENTIALS.ssid, WIFI_CREDENTIALS.password);
+  char config_error[128] = {0};
+  if (!loadRuntimeConfig(runtime_config, config_error, sizeof(config_error))) {
+    Serial.printf("[Config] ERROR: %s\n", config_error);
+    if (renderer) renderer->showMessage(configErrorToDisplayMessage(config_error));
+    while (true) {
+      delay(1000);
+    }
+  }
+  runtime_config_loaded = true;
 
-  Serial.printf("Connecting to %s", WIFI_CREDENTIALS.ssid);
+  bus_targets_count = runtime_config.bus.targetCount;
+  for (int i = 0; i < bus_targets_count; i++) {
+    bus_targets[i].stationId = runtime_config.bus.targets[i].stationId;
+    bus_targets[i].line = runtime_config.bus.targets[i].line;
+    strncpy(bus_targets[i].destination, runtime_config.bus.targets[i].destination, sizeof(bus_targets[i].destination) - 1);
+    bus_targets[i].destination[sizeof(bus_targets[i].destination) - 1] = '\0';
+    bus_targets[i].is_realtime = false;
+    bus_targets[i].last_known_ETA[0] = '\0';
+    bus_targets[i].minutes_remaining = 0;
+    bus_targets[i].no_data = false;
+  }
+
+  Serial.printf("[Config] Loaded %d targets\n", bus_targets_count);
+
+  // =========================================
+  // 3. Initialize WiFi
+  // =========================================
+  if (!runtime_config_loaded) {
+    Serial.println("[Config] Runtime config not loaded, aborting WiFi init");
+    if (renderer) renderer->showMessage("Config Not Loaded");
+    while (true) {
+      delay(1000);
+    }
+  }
+
+  WiFi.mode(WIFI_STA);
+  Serial.printf("[WiFi] Attempting connect with SSID='%s', PASSWORD='%s'\n",
+                runtime_config.wifi.ssid,
+                runtime_config.wifi.password);
+  WiFi.begin(runtime_config.wifi.ssid, runtime_config.wifi.password);
+
+  Serial.printf("Connecting to %s", runtime_config.wifi.ssid);
   unsigned long wifiStart = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 20000) {
     delay(500);
@@ -141,7 +160,7 @@ void setup() {
   }
 
   // =========================================
-  // 3. Synchronize clock
+  // 4. Synchronize clock
   // =========================================
   time_init_and_sync(TIME_ZONE);
   char time_buf[6];
@@ -150,7 +169,7 @@ void setup() {
   Serial.println(time_buf);
 
   // =========================================
-  // 4. Initialize bus fetcher
+  // 5. Initialize bus fetcher
   // =========================================
   bus_fetcher = createFetcher();
   #else
@@ -163,15 +182,10 @@ void setup() {
   for (int i = 0; i < DUMMY_TARGETS_COUNT; i++) {
     bus_targets[i] = DUMMY_TARGETS[i];
   }
+  bus_targets_count = DUMMY_TARGETS_COUNT;
   if (renderer) {
-    renderer->render(bus_targets, DUMMY_TARGETS_COUNT);
+    renderer->render(bus_targets, bus_targets_count);
   }
-  #else
-  // Copy const targets to mutable array
-  for (int i = 0; i < TARGETS_COUNT; i++) {
-    bus_targets[i] = MY_TARGETS[i];
-  }
-  Serial.printf("[Main] Tracking %d bus targets\n", TARGETS_COUNT);
   #endif
 
   #ifdef MEMORY_DEBUG
@@ -195,7 +209,17 @@ void loop() {
   if (last_fetch_time == 0 || (now - last_fetch_time >= FETCH_INTERVAL)) {
     last_fetch_time = now ? now : 1;  // Avoid 0 to prevent re-trigger
 
-    if (!ensureWiFi()) {
+    if (!runtime_config_loaded) {
+      Serial.println("[Config] Runtime config not loaded, skipping WiFi reconnect");
+      if (renderer) renderer->showMessage("Config Not Loaded");
+      return;
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+      wifi_disconnected_msg_flag = true;
+    }
+
+    if (!ensureWiFiConnected(runtime_config.wifi.ssid, runtime_config.wifi.password, 10000)) {
       Serial.println("[Main] No WiFi - skipping fetch");
       if (renderer) renderer->showMessage("No WiFi");
     } else {
@@ -204,7 +228,7 @@ void loop() {
       time_get_formatted(fetch_time_buf, sizeof(fetch_time_buf));
       Serial.println(fetch_time_buf);
       
-      for (int i = 0; i < TARGETS_COUNT; i++) {
+      for (int i = 0; i < bus_targets_count; i++) {
         bool success = bus_fetcher->update(bus_targets[i]);
         bus_targets[i].no_data = !success;
         
@@ -222,7 +246,7 @@ void loop() {
 
       // Update display with new data
       if (renderer) {
-        renderer->render(bus_targets, TARGETS_COUNT);
+        renderer->render(bus_targets, bus_targets_count);
       }
     }
   }

@@ -8,6 +8,9 @@ bool NetworkManager::connect_to_wifi() {
     WiFi.mode(WIFI_STA);
     
     Serial.println("Starting WiFi Connection...");
+    Serial.printf("[WiFi] Attempting connect with SSID='%s', PASSWORD='%s'\n",
+                  _credentials.ssid,
+                  _credentials.password);
     
 
     WiFi.begin(_credentials.ssid, _credentials.password);
@@ -64,4 +67,30 @@ void NetworkManager::print_wifi_status() {
         case WL_DISCONNECTED:    Serial.println("Status: DISCONNECTED"); break;
         default:                 Serial.println("Status: UNKNOWN"); break;
     }
+}
+
+bool ensureWiFiConnected(const char* ssid, const char* password, unsigned long timeoutMs) {
+    if (WiFi.status() == WL_CONNECTED) {
+        return true;
+    }
+
+    Serial.println("[WiFi] Disconnected, attempting reconnect...");
+    WiFi.disconnect();
+    Serial.printf("[WiFi] Attempting reconnect with SSID='%s', PASSWORD='%s'\n", ssid, password);
+    WiFi.begin(ssid, password);
+
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.printf("[WiFi] Reconnected! IP: %s\n", WiFi.localIP().toString().c_str());
+        return true;
+    }
+
+    Serial.println("[WiFi] Reconnect failed.");
+    return false;
 }
