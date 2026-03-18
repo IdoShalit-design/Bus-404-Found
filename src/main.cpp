@@ -1,16 +1,16 @@
 #include <Arduino.h>
-#include <WiFi.h>
-#include "Network/IBusFetcher.h"
-#include "Network/CurlBusFetcher.h"
-#include "Network/NetworkManager.h"
-#include "Display/IRenderer.h"
-#include "Display/HUB75Display.h"
-#include "Config.h"
-#include "Structs.h"
-#include "ConfigLoader.h"
-#include "TimeManager.h"
-#include <WiFiUdp.h>
 #include <cstring>
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include "Config.h"
+#include "ConfigLoader.h"
+#include "Display/HUB75Display.h"
+#include "Display/IRenderer.h"
+#include "Network/CurlBusFetcher.h"
+#include "Network/IBusFetcher.h"
+#include "Network/NetworkManager.h"
+#include "Structs.h"
+#include "TimeManager.h"
 
 // =========================================
 // Global instances
