@@ -18,13 +18,8 @@ void Builder::build(const AppConfig& config, IBusFetcher*& fetcher, IRenderer*& 
         renderer = nullptr;
     }
 
-    switch (config.state) {
-        case BuildState::Production:
-        case BuildState::Development:
-        case BuildState::Unknown:
-        default:
-            fetcher = new CurlbusFetcher();
-            renderer = new HUB75Display();
-            break;
-    }
+    (void)config; // BuildState kept for future configuration-specific wiring.
+
+    fetcher = new CurlbusFetcher();
+    renderer = new HUB75Display();
 }

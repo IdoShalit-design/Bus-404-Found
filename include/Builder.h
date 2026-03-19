@@ -18,8 +18,8 @@ public:
     /**
      * @brief Builds renderer and fetcher instances according to configuration.
      * @param config Application configuration containing build state and options.
-     * @param fetcher Reference to a fetcher pointer that will be replaced.
-     * @param renderer Reference to a renderer pointer that will be replaced.
+     * @param fetcher Reference to a fetcher pointer that will be replaced. Any existing instance will be deleted.
+     * @param renderer Reference to a renderer pointer that will be replaced. Any existing instance will be deleted.
      */
     static void build(const AppConfig& config, IBusFetcher*& fetcher, IRenderer*& renderer);
 };
