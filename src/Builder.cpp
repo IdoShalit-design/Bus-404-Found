@@ -29,9 +29,5 @@ void Builder::build(const AppConfig& config, IBusFetcher*& fetcher, IRenderer*& 
             fetcher = new CurlbusFetcher();
             renderer = new HUB75Display();
             break;
-        default:
-            fetcher = new CurlbusFetcher();
-            renderer = new HUB75Display();
-            break;
     }
 }
