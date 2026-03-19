@@ -10,11 +10,15 @@
 
 /**
  * @brief Represents the current build mode of the firmware.
+ *
+ * CURRENT: existing Hub75 + Curlbus flow.
+ * STATION: future station-focused mode.
+ * NY_METRO: future New York Metro mode.
  */
 enum class BuildState {
-    Unknown,
-    Production,
-    Development
+    Current,
+    Station,
+    NyMetro
 };
 
 /**
@@ -25,7 +29,7 @@ struct AppConfig {
     const char* lines[8];
     std::size_t lineCount;
 
-    AppConfig() : state(BuildState::Unknown), lines{nullptr}, lineCount(0) {}
+    AppConfig() : state(BuildState::Current), lines{nullptr}, lineCount(0) {}
 };
 
 /**
