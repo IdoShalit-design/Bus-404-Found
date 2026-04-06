@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "stationId": "1570",
+  "lineNumbers": [
+    "7",
+    "19",
+    "72"
+  ],
+  "targets": [
+    {
+      "stationId": "1570",
+      "line": "7"
+    },
+    {
+      "stationId": "3541",
+      "line": "19"
+    },
+    {
+      "stationId": "6134",
+      "line": "72"
+    }
+  ]
+}

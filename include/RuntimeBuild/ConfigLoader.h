@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "Config.h"
+#include "RuntimeBuild/Builder.h"
 
 constexpr size_t MAX_WIFI_SSID_LEN = 33;
 constexpr size_t MAX_WIFI_PASSWORD_LEN = 65;
@@ -28,6 +29,7 @@ struct BusConfig {
 };
 
 struct RuntimeConfig {
+    BuildState buildState;
     WifiConfig wifi;
     BusConfig bus;
 };
