@@ -1,14 +1,16 @@
 #include <Arduino.h>
 #include <cstring>
+#include <memory>
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include "Config.h"
-#include "ConfigLoader.h"
+#include "RuntimeBuild/Builder.h"
+#include "RuntimeBuild/ConfigLoader.h"
 #include "Display/HUB75Display.h"
 #include "Display/IRenderer.h"
-#include "Network/CurlBusFetcher.h"
 #include "Network/IBusFetcher.h"
 #include "Network/NetworkManager.h"
+#include "Network/RuntimeBuildPortal.h"
 #include "Structs.h"
 #include "TimeManager.h"
 
@@ -35,25 +37,6 @@ int bus_targets_count = 0;
 unsigned long last_fetch_time = 0;
 unsigned long last_heap_log_time = 0;  // Timestamp of last heap log write
 bool wifi_disconnected_msg_flag = false; // Set when WiFi loss is detected, cleared after UDP report
-
-/**
- * @brief Creates the appropriate IBusFetcher based on FETCHER_TYPE config.
- * @return Pointer to concrete IBusFetcher implementation.
- */
-IBusFetcher* createFetcher() {
-    #if FETCHER_TYPE == FETCHER_CURLBUS
-        Serial.println("[Main] Using CurlbusFetcher");
-        return new CurlbusFetcher();
-    // Future fetcher types:
-    // #elif FETCHER_TYPE == FETCHER_GOVIL
-    //     return new GovIlFetcher();
-    // #elif FETCHER_TYPE == FETCHER_MOCK
-    //     return new MockFetcher();
-    #else
-        Serial.println("[Main] Unknown FETCHER_TYPE, defaulting to CurlbusFetcher");
-        return new CurlbusFetcher();
-    #endif
-}
 
 /**
  * @brief Sends current heap memory status via UDP to COMPUTER_IP.
@@ -90,6 +73,9 @@ void setup() {
   renderer->init();
   Serial.println("[Main] Display initialized successfully");
   renderer->showMessage("Loading...");
+
+  RuntimeBuildPortalResult portalResult = runRuntimeBuildPortal();
+  Serial.printf("[Main] Runtime build portal result: %d\n", static_cast<int>(portalResult));
   
 
   // If SCREEN_DEBUG is enabled, run display tests and never return
@@ -169,9 +155,33 @@ void setup() {
   Serial.println(time_buf);
 
   // =========================================
-  // 5. Initialize bus fetcher
+  // 5. Build runtime pipeline (fetcher/renderer) from selected BuildState
   // =========================================
-  bus_fetcher = createFetcher();
+  std::unique_ptr<IBusFetcher> builtFetcher;
+  std::unique_ptr<IRenderer> builtRenderer;
+  if (!build(runtime_config.buildState, builtFetcher, builtRenderer)) {
+    Serial.println("[Build] Runtime build selection failed");
+    if (renderer) renderer->showMessage("Build Failed");
+    while (true) {
+      delay(1000);
+    }
+  }
+
+  if (builtRenderer) {
+    if (renderer != nullptr) {
+      delete renderer;
+    }
+    renderer = builtRenderer.release();
+    renderer->init();
+    renderer->showMessage("Build Ready");
+  }
+
+  bus_fetcher = builtFetcher.release();
+
+  if (bus_fetcher == nullptr) {
+    Serial.println("[Build] No fetcher created for selected build state");
+    if (renderer) renderer->showMessage("No Fetcher");
+  }
   #else
   Serial.println("[Main] DUMMY_BUSES_DEBUG enabled - skipping WiFi, NTP and fetcher");
   #endif
@@ -222,6 +232,9 @@ void loop() {
     if (!ensureWiFiConnected(runtime_config.wifi.ssid, runtime_config.wifi.password, 10000)) {
       Serial.println("[Main] No WiFi - skipping fetch");
       if (renderer) renderer->showMessage("No WiFi");
+    } else if (bus_fetcher == nullptr) {
+      Serial.println("[Main] No fetcher configured for this build state");
+      if (renderer) renderer->showMessage("No Fetcher");
     } else {
       Serial.println("\n--- Fetching bus arrivals ---");
       char fetch_time_buf[6];

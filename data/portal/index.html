@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bus-404 Runtime Build</title>
+  <link rel="stylesheet" href="/portal.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Runtime Build Setup</h1>
+      <form method="POST" action="/submit">
+        <label for="ssid">Wi-Fi SSID</label>
+        <input id="ssid" name="ssid" maxlength="32" required>
+
+        <label for="password">Wi-Fi Password</label>
+        <input id="password" type="password" name="password" maxlength="64" required>
+
+        <label for="state">Activation Mode</label>
+        <select id="state" name="state">
+          <option value="BUS_BY_STATION">BUS_BY_STATION</option>
+          <option value="BUS_BY_LINES">BUS_BY_LINES</option>
+          <option value="NY_METRO_BY_STATION">NY_METRO_BY_STATION</option>
+          <option value="USE_CURRENT_BUILD">USE_CURRENT_BUILD</option>
+        </select>
+
+        <div id="stationOnly">
+          <label for="stationId">Station ID</label>
+          <input id="stationId" name="stationId" maxlength="23">
+        </div>
+
+        <div id="linesGroup" class="hidden">
+          <label for="linesStationId">Station ID</label>
+          <input id="linesStationId" name="linesStationId" maxlength="23">
+
+          <label for="lineNumbers">Line Numbers</label>
+          <input id="lineNumbers" name="lineNumbers" placeholder="7,19,72">
+          <div class="hint">Comma-separated, up to 3 lines.</div>
+        </div>
+
+        <button type="submit">Save and Apply</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/portal.js"></script>
+</body>
+</html>
