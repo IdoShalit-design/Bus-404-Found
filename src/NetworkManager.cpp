@@ -1,4 +1,4 @@
-#include "Network/NetworkManager.h"
+#include "NetworkManager.h"
 
 NetworkManager::NetworkManager(const WifiCredentials& creds) 
 : _credentials(creds) {

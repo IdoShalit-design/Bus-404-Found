@@ -12,7 +12,7 @@
  * @class IBusFetcher
  * @brief Abstract base class (Interface) for fetching bus data.
  * * This class defines the contract for any data fetching strategy.
- * Implementations could include CurlbusFetcher, GovIlFetcher, or MockFetcher.
+ * Implementations could include CurlBuseFetcherByLine, GovIlFetcher, or MockFetcher.
  */
 class IBusFetcher {
 public:
