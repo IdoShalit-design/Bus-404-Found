@@ -6,7 +6,7 @@
 [![PlatformIO](https://img.shields.io/badge/Built%20with-PlatformIO-orange)](https://platformio.org/)
 [![ESP32-S3](https://img.shields.io/badge/Board-ESP32--S3-blue)](https://www.espressif.com/en/products/socs/esp32-s3)
 
-![Bus-404-Found in action](image.png)
+![Bus-404-Found in action](assets/images/image.png)
 
 ---
 
@@ -78,7 +78,7 @@ completly different hardware without changing core code thanks to interface
 use the next picture from https://github.com/CruiseandCoffee that might help 
 with wiring:
 
-![HUB75 Wiring](hub75wiring.png)
+![HUB75 Wiring](assets/images/hub75wiring.png)
 
 ---
 
@@ -147,8 +147,6 @@ Runtime credentials and bus targets are read from files in `data/`:
   ]
 }
 ```
-
-> **Tip:** Find your station ID on [CurlBus](https://curlbus.app/) — it's the number in the URL when you look up a stop.
 
 ### 3. Build & upload
 
@@ -312,4 +310,4 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 <p align="center">
   Made with ❤️ and solder smoke
 </p>
-![alt text](image.png)
+![alt text](assets/images/image.png)
