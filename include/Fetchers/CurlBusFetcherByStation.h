@@ -1,5 +1,5 @@
-#ifndef CURK_BUS_FETCHER_BY_STATION_H
-#define CURK_BUS_FETCHER_BY_STATION_H
+#ifndef CURL_BUS_FETCHER_BY_STATION_H
+#define CURL_BUS_FETCHER_BY_STATION_H
 
 #include "IBusFetcher.h"
 
@@ -37,4 +37,4 @@ public:
     bool update(BusTarget& bus) override;
 };
 
-#endif // CURK_BUS_FETCHER_BY_STATION_H
+#endif // CURL_BUS_FETCHER_BY_STATION_H
