@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "Network/IBusFetcher.h"
+#include "Fetchers/IBusFetcher.h"
 #include "Display/IRenderer.h"
 
 typedef enum BuildState {

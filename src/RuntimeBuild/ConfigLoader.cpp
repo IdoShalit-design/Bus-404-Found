@@ -142,10 +142,13 @@ bool parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst buildIn
         return false;
     }
 
-    copyBounded(outConfig.bus.targets[0].stationId, sizeof(outConfig.bus.targets[0].stationId), stationId);
-    outConfig.bus.targets[0].line[0] = '\0';
-    outConfig.bus.targets[0].destination[0] = '\0';
-    outConfig.bus.targetCount = 1;
+    for (int i = 0; i < MAX_RUNTIME_TARGETS; i++) {
+        copyBounded(outConfig.bus.targets[i].stationId, sizeof(outConfig.bus.targets[i].stationId), stationId);
+        outConfig.bus.targets[i].line[0] = '\0';
+        outConfig.bus.targets[i].destination[0] = '\0';
+    }
+
+    outConfig.bus.targetCount = MAX_RUNTIME_TARGETS;
     return true;
 }
 

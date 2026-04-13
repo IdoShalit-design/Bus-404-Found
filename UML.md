@@ -78,13 +78,13 @@ classDiagram
             <<IBusFetcher.h>>
             +update(BusTarget bus) bool
         }
-        class CurlbusFetcher {
-            <<CurlBusFetcher.h>>
+        class CurlBuseFetcherByLine {
+            <<CurlBuseFetcherByLine.h>>
             -DynamicJsonDocument* _doc
             -char _url[]
             -WiFiClientSecure _secureClient
-            +CurlbusFetcher()
-            +~CurlbusFetcher()
+            +CurlBuseFetcherByLine()
+            +~CurlBuseFetcherByLine()
             +update(BusTarget bus) bool
         }
     }
@@ -130,7 +130,7 @@ classDiagram
     }
 
     %% Interface implementations (Strategy Pattern)
-    IBusFetcher <|.. CurlbusFetcher : implements
+    IBusFetcher <|.. CurlBuseFetcherByLine : implements
     IBusFetcher <|.. MockFetcher : implements
     IBusFetcher <|.. GovIlFetcher : implements
 
@@ -152,6 +152,6 @@ classDiagram
     WifiCredentials ..> WifiCredentialsData : constructed from
 
     %% Data flow
-    CurlbusFetcher ..> BusTarget : updates
+    CurlBuseFetcherByLine ..> BusTarget : updates
     MockFetcher ..> BusTarget : updates
     HUB75Display ..> BusTarget : renders

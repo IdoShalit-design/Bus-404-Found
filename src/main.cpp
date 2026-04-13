@@ -8,9 +8,9 @@
 #include "RuntimeBuild/ConfigLoader.h"
 #include "Display/HUB75Display.h"
 #include "Display/IRenderer.h"
-#include "Network/IBusFetcher.h"
-#include "Network/NetworkManager.h"
-#include "Network/RuntimeBuildPortal.h"
+#include "Fetchers/IBusFetcher.h"
+#include "NetworkManager.h"
+#include "RuntimeBuild/RuntimeBuildPortal.h"
 #include "Structs.h"
 #include "TimeManager.h"
 
