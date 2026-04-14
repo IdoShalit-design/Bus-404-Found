@@ -208,6 +208,14 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
             return;
         }
 
+        if (selectedState != USE_CURRENT_BUILD && !saveLastConcreteBuildStateConfig(selectedState)) {
+            submissionState.finished = true;
+            submissionState.result = PORTAL_INTERNAL_ERROR;
+            submissionState.details = "Failed to save concrete build state";
+            server.send(500, "text/html", buildResultHtml(submissionState.details));
+            return;
+        }
+
         bool saveBuildInfoOk = false;
         switch (selectedState) {
             case BUS_BY_STATION:
@@ -249,7 +257,8 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
                 break;
             }
             case USE_CURRENT_BUILD:
-                saveBuildInfoOk = saveBuildInfoCurrentConfig();
+                // Keep existing build_info payload so resolver can reuse the last concrete mode data.
+                saveBuildInfoOk = true;
                 break;
             default:
                 break;

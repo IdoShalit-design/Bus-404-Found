@@ -4,6 +4,8 @@
 #include <LittleFS.h>
 #include <string.h>
 
+#include "RuntimeBuild/ConfigManager.h"
+
 namespace {
 
 bool parseBuildState(const char* stateText, BuildState& outState) {
@@ -193,14 +195,7 @@ bool parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfo
     return true;
 }
 
-bool parseBuildInfoCurrentMode(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen) {
-    outConfig.bus.targetCount = 0;
-    (void)errorBuffer;
-    (void)errorBufferLen;
-    return true;
-}
-
-bool parseBuildInfoConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen) {
+bool parseBuildInfoConfig(RuntimeConfig& outConfig, BuildState concreteState, char* errorBuffer, size_t errorBufferLen) {
     File buildInfoFile = LittleFS.open("/build_info.json", "r");
     if (!buildInfoFile) {
         setError(errorBuffer, errorBufferLen, "Missing /build_info.json");
@@ -229,14 +224,15 @@ bool parseBuildInfoConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t er
     }
 
     JsonObjectConst buildInfoObj = buildInfoDoc.as<JsonObjectConst>();
-    switch (outConfig.buildState) {
+    switch (concreteState) {
         case BUS_BY_STATION:
         case NY_METRO_BY_STATION:
             return parseBuildInfoStationMode(outConfig, buildInfoObj, errorBuffer, errorBufferLen);
         case BUS_BY_LINES:
             return parseBuildInfoLinesMode(outConfig, buildInfoObj, errorBuffer, errorBufferLen);
         case USE_CURRENT_BUILD:
-            return parseBuildInfoCurrentMode(outConfig, errorBuffer, errorBufferLen);
+            setError(errorBuffer, errorBufferLen, "Concrete state cannot be USE_CURRENT_BUILD");
+            return false;
         default:
             setError(errorBuffer, errorBufferLen, "Unknown build state for build_info parsing");
             return false;
@@ -259,10 +255,35 @@ bool loadRuntimeConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t error
         return false;
     }
 
-    if (!parseBuildInfoConfig(outConfig, errorBuffer, errorBufferLen)) {
+    if (!resolveConcreteBuildState(outConfig, outConfig.concreteBuildState, errorBuffer, errorBufferLen)) {
         return false;
     }
 
+    if (!parseBuildInfoConfig(outConfig, outConfig.concreteBuildState, errorBuffer, errorBufferLen)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState, char* errorBuffer, size_t errorBufferLen) {
+    if (config.buildState != USE_CURRENT_BUILD) {
+        outState = config.buildState;
+        return true;
+    }
+
+    BuildState persistedConcreteState = BUS_BY_STATION;
+    if (!loadLastConcreteBuildStateConfig(persistedConcreteState)) {
+        setError(errorBuffer, errorBufferLen, "Missing /last_concrete_build_state.json");
+        return false;
+    }
+
+    if (persistedConcreteState == USE_CURRENT_BUILD) {
+        setError(errorBuffer, errorBufferLen, "last_concrete_build_state.json cannot be USE_CURRENT_BUILD");
+        return false;
+    }
+
+    outState = persistedConcreteState;
     return true;
 }
 

@@ -28,6 +28,21 @@ IBusFetcher* bus_fetcher = nullptr;
 RuntimeConfig runtime_config;
 bool runtime_config_loaded = false;
 
+const char* buildStateToString(BuildState state) {
+  switch (state) {
+    case BUS_BY_STATION:
+      return "BUS_BY_STATION";
+    case BUS_BY_LINES:
+      return "BUS_BY_LINES";
+    case NY_METRO_BY_STATION:
+      return "NY_METRO_BY_STATION";
+    case USE_CURRENT_BUILD:
+      return "USE_CURRENT_BUILD";
+    default:
+      return "UNKNOWN";
+  }
+}
+
 // Mutable bus targets used by fetcher and renderer
 BusTarget bus_targets[MAX_RUNTIME_TARGETS];
 int bus_targets_count = 0;
@@ -99,6 +114,10 @@ void setup() {
   }
   runtime_config_loaded = true;
 
+  Serial.printf("[Config] Requested state: %s, concrete state: %s\n",
+                buildStateToString(runtime_config.buildState),
+                buildStateToString(runtime_config.concreteBuildState));
+
   bus_targets_count = runtime_config.bus.targetCount;
   for (int i = 0; i < bus_targets_count; i++) {
     bus_targets[i].stationId = runtime_config.bus.targets[i].stationId;
@@ -159,7 +178,7 @@ void setup() {
   // =========================================
   std::unique_ptr<IBusFetcher> builtFetcher;
   std::unique_ptr<IRenderer> builtRenderer;
-  if (!build(runtime_config.buildState, builtFetcher, builtRenderer)) {
+  if (!build(runtime_config.concreteBuildState, builtFetcher, builtRenderer)) {
     Serial.println("[Build] Runtime build selection failed");
     if (renderer) renderer->showMessage("Build Failed");
     while (true) {

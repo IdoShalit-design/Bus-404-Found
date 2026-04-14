@@ -23,6 +23,22 @@ bool loadBuildStateConfig(BuildState& outState);
 bool saveBuildStateConfig(BuildState state);
 
 /**
+ * @brief Loads the last concrete (non-USE_CURRENT_BUILD) state from /last_concrete_build_state.json.
+ *
+ * @param outState Parsed BuildState on success.
+ * @return true on successful load and parse, false otherwise.
+ */
+bool loadLastConcreteBuildStateConfig(BuildState& outState);
+
+/**
+ * @brief Persists the last concrete (non-USE_CURRENT_BUILD) state to /last_concrete_build_state.json.
+ *
+ * @param state BuildState to persist.
+ * @return true when file write succeeds, false otherwise.
+ */
+bool saveLastConcreteBuildStateConfig(BuildState state);
+
+/**
  * @brief Persists Wi-Fi credentials to /wifi_credentials.json.
  *
  * @param ssid Wi-Fi SSID.

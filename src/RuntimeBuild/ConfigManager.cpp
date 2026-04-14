@@ -8,6 +8,7 @@
 namespace {
 
 const char* kBuildStateFile = "/build_state.json";
+const char* kLastConcreteBuildStateFile = "/last_concrete_build_state.json";
 const char* kWifiCredentialsFile = "/wifi_credentials.json";
 const char* kBuildInfoFile = "/build_info.json";
 constexpr uint8_t kConfigVersion = 1;
@@ -78,16 +79,10 @@ bool writeBuildInfoDoc(const JsonDocument& doc) {
     return true;
 }
 
-} // namespace
-
-bool loadBuildStateConfig(BuildState& outState) {
-    if (!ensureLittleFsReady()) {
-        return false;
-    }
-
-    File stateFile = LittleFS.open(kBuildStateFile, "r");
+bool loadBuildStateFromFile(const char* filePath, const char* displayName, BuildState& outState) {
+    File stateFile = LittleFS.open(filePath, "r");
     if (!stateFile) {
-        Serial.println("[ConfigManager] Missing /build_state.json");
+        Serial.printf("[ConfigManager] Missing %s\n", displayName);
         return false;
     }
 
@@ -95,39 +90,35 @@ bool loadBuildStateConfig(BuildState& outState) {
     DeserializationError err = deserializeJson(doc, stateFile);
     stateFile.close();
     if (err) {
-        Serial.println("[ConfigManager] Invalid build_state.json");
+        Serial.printf("[ConfigManager] Invalid %s\n", displayName);
         return false;
     }
 
     JsonVariantConst versionValue = doc["version"];
     if (versionValue.isNull() || versionValue.as<int>() != kConfigVersion) {
-        Serial.println("[ConfigManager] build_state.json schema version mismatch");
+        Serial.printf("[ConfigManager] %s schema version mismatch\n", displayName);
         return false;
     }
 
     const char* stateText = doc["state"];
     if (!parseBuildState(stateText, outState)) {
-        Serial.println("[ConfigManager] Unknown state in build_state.json");
+        Serial.printf("[ConfigManager] Unknown state in %s\n", displayName);
         return false;
     }
 
     return true;
 }
 
-bool saveBuildStateConfig(BuildState state) {
-    if (!ensureLittleFsReady()) {
-        return false;
-    }
-
+bool saveBuildStateToFile(const char* filePath, const char* displayName, BuildState state) {
     const char* stateText = buildStateToString(state);
     if (stateText == nullptr) {
-        Serial.println("[ConfigManager] Cannot persist unknown build state");
+        Serial.printf("[ConfigManager] Cannot persist unknown build state to %s\n", displayName);
         return false;
     }
 
-    File stateFile = LittleFS.open(kBuildStateFile, "w");
+    File stateFile = LittleFS.open(filePath, "w");
     if (!stateFile) {
-        Serial.println("[ConfigManager] Cannot open /build_state.json for write");
+        Serial.printf("[ConfigManager] Cannot open %s for write\n", displayName);
         return false;
     }
 
@@ -137,12 +128,51 @@ bool saveBuildStateConfig(BuildState state) {
 
     if (serializeJson(doc, stateFile) == 0) {
         stateFile.close();
-        Serial.println("[ConfigManager] Failed to write build_state.json");
+        Serial.printf("[ConfigManager] Failed to write %s\n", displayName);
         return false;
     }
 
     stateFile.close();
     return true;
+}
+
+} // namespace
+
+bool loadBuildStateConfig(BuildState& outState) {
+    if (!ensureLittleFsReady()) {
+        return false;
+    }
+
+    return loadBuildStateFromFile(kBuildStateFile, "/build_state.json", outState);
+}
+
+bool saveBuildStateConfig(BuildState state) {
+    if (!ensureLittleFsReady()) {
+        return false;
+    }
+
+    return saveBuildStateToFile(kBuildStateFile, "/build_state.json", state);
+}
+
+bool loadLastConcreteBuildStateConfig(BuildState& outState) {
+    if (!ensureLittleFsReady()) {
+        return false;
+    }
+
+    return loadBuildStateFromFile(kLastConcreteBuildStateFile, "/last_concrete_build_state.json", outState);
+}
+
+bool saveLastConcreteBuildStateConfig(BuildState state) {
+    if (!ensureLittleFsReady()) {
+        return false;
+    }
+
+    if (state == USE_CURRENT_BUILD) {
+        Serial.println("[ConfigManager] Refusing to save USE_CURRENT_BUILD as concrete state");
+        return false;
+    }
+
+    return saveBuildStateToFile(kLastConcreteBuildStateFile, "/last_concrete_build_state.json", state);
 }
 
 bool saveWifiCredentialsConfig(const char* ssid, const char* password) {

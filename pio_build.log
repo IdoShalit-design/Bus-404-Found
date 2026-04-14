@@ -1,0 +1,9 @@
+********************************************************************************
+Obsolete PIO Core v6.1.18 is used (previous was 6.1.19)
+Please remove multiple PIO Cores from a system:
+https://docs.platformio.org/en/latest/core/installation/troubleshooting.html
+********************************************************************************
+Usage: platformio run [OPTIONS]
+Try 'platformio run -h' for help.
+
+Error: Got unexpected extra arguments (; echo EXIT:$?)
