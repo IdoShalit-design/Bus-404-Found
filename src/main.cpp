@@ -53,6 +53,20 @@ unsigned long last_fetch_time = 0;
 unsigned long last_heap_log_time = 0;  // Timestamp of last heap log write
 bool wifi_disconnected_msg_flag = false; // Set when WiFi loss is detected, cleared after UDP report
 
+void initializeBusTargetsFromRuntimeConfig() {
+  bus_targets_count = runtime_config.bus.targetCount;
+  for (int i = 0; i < bus_targets_count; i++) {
+    bus_targets[i].stationId = runtime_config.bus.targets[i].stationId;
+    bus_targets[i].line = runtime_config.bus.targets[i].line;
+    strncpy(bus_targets[i].destination, runtime_config.bus.targets[i].destination, sizeof(bus_targets[i].destination) - 1);
+    bus_targets[i].destination[sizeof(bus_targets[i].destination) - 1] = '\0';
+    bus_targets[i].is_realtime = false;
+    bus_targets[i].last_known_ETA[0] = '\0';
+    bus_targets[i].minutes_remaining = 0;
+    bus_targets[i].no_data = false;
+  }
+}
+
 /**
  * @brief Sends current heap memory status via UDP to COMPUTER_IP.
  */
@@ -118,17 +132,7 @@ void setup() {
                 buildStateToString(runtime_config.buildState),
                 buildStateToString(runtime_config.concreteBuildState));
 
-  bus_targets_count = runtime_config.bus.targetCount;
-  for (int i = 0; i < bus_targets_count; i++) {
-    bus_targets[i].stationId = runtime_config.bus.targets[i].stationId;
-    bus_targets[i].line = runtime_config.bus.targets[i].line;
-    strncpy(bus_targets[i].destination, runtime_config.bus.targets[i].destination, sizeof(bus_targets[i].destination) - 1);
-    bus_targets[i].destination[sizeof(bus_targets[i].destination) - 1] = '\0';
-    bus_targets[i].is_realtime = false;
-    bus_targets[i].last_known_ETA[0] = '\0';
-    bus_targets[i].minutes_remaining = 0;
-    bus_targets[i].no_data = false;
-  }
+  initializeBusTargetsFromRuntimeConfig();
 
   Serial.printf("[Config] Loaded %d targets\n", bus_targets_count);
 
