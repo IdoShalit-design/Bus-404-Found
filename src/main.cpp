@@ -137,7 +137,6 @@ void setup() {
     // screen_tests() never returns
   #endif
 
-  #if !DUMMY_BUSES_DEBUG
   // =========================================
   // 2. Load runtime config from LittleFS (fail-fast)
   // =========================================
@@ -238,21 +237,6 @@ void setup() {
     Serial.println("[Build] No fetcher created for selected build state");
     if (renderer) renderer->showMessage("No Fetcher");
   }
-  #else
-  Serial.println("[Main] DUMMY_BUSES_DEBUG enabled - skipping WiFi, NTP and fetcher");
-  #endif
-
-  #if DUMMY_BUSES_DEBUG
-  // Load dummy targets and render immediately, no fetch needed
-  Serial.println("[Main] Rendering dummy bus data...");
-  for (int i = 0; i < DUMMY_TARGETS_COUNT; i++) {
-    bus_targets[i] = DUMMY_TARGETS[i];
-  }
-  bus_targets_count = DUMMY_TARGETS_COUNT;
-  if (renderer) {
-    renderer->render(bus_targets, bus_targets_count);
-  }
-  #endif
 
   #ifdef MEMORY_DEBUG
   Serial.printf("[Main] Heap reports will be sent via UDP to %s:%d\n", COMPUTER_IP, HEAP_UDP_PORT);
@@ -261,12 +245,6 @@ void setup() {
 }
 
 void loop() {
-  #if DUMMY_BUSES_DEBUG
-  // Nothing to do - dummy data already rendered in setup()
-  delay(1000);
-  return;
-  #endif
-
   // =========================================
   // Periodic bus data fetch
   // =========================================

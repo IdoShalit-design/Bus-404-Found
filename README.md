@@ -188,7 +188,6 @@ Settings that still come from `include/Config.h`:
 | `TIME_ZONE` | `"IST-2IDT,M3.4.4/26,M10.5.0"` | POSIX timezone string (default: Israel) |
 | `FETCHER_TYPE` | `FETCHER_CURLBUS` | Data source (`FETCHER_CURLBUS`, future: `FETCHER_GOVIL`, `FETCHER_MOCK`) |
 | `SCREEN_DEBUG` | `0` | Set to `1` to run infinite display test patterns |
-| `DUMMY_BUSES_DEBUG` | `0` | Set to `1` to render dummy data without Wi-Fi |
 | `MEMORY_DEBUG` | `0` | Set to `1` to send heap stats via UDP every 60s |
 
 Display settings are in `include/Display/HUB75Display.h`:
@@ -269,9 +268,6 @@ Bus-404-Found/
 
 ### Screen Debug (`SCREEN_DEBUG = 1`)
 Runs infinite display test patterns (fill colors, pixel walk, text rendering). Useful to verify your wiring without needing Wi-Fi.
-
-### Dummy Buses (`DUMMY_BUSES_DEBUG = 1`)
-Renders hardcoded dummy bus data immediately — no Wi-Fi, no API calls. Great for UI development.
 
 ### Memory Debug (`MEMORY_DEBUG = 1`)
 Sends heap memory stats (free heap, min free heap, Wi-Fi RSSI) via UDP to your PC every 60 seconds. Use `udp_listener.py` to capture:

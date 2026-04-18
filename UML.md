@@ -38,7 +38,6 @@ classDiagram
             +TARGETS_COUNT
             +TIME_ZONE
             +SCREEN_DEBUG
-            +DUMMY_BUSES_DEBUG
         }
         class Secrets {
             <<Secrets.h>>
