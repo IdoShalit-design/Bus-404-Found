@@ -14,6 +14,12 @@
 #include "Structs.h"
 #include "TimeManager.h"
 
+
+#define WIFI_SETUP_CONNECT_TIMEOUT_MS 20000UL
+#define WIFI_SETUP_RETRY_MESSAGE_MS 3000UL
+
+
+
 // =========================================
 // Global instances
 // =========================================
@@ -40,6 +46,23 @@ const char* buildStateToString(BuildState state) {
       return "USE_CURRENT_BUILD";
     default:
       return "UNKNOWN";
+  }
+}
+
+const char* wifiFailureToDisplayMessage(wl_status_t status) {
+  switch (status) {
+    case WL_NO_SSID_AVAIL:
+      return "WiFi SSID Not Found";
+    case WL_CONNECT_FAILED:
+      return "WiFi Auth Failed";
+    case WL_CONNECTION_LOST:
+      return "WiFi Connection Lost";
+    case WL_DISCONNECTED:
+      return "WiFi Disconnected";
+    case WL_IDLE_STATUS:
+      return "WiFi Connect Timeout";
+    default:
+      return "WiFi Connect Failed";
   }
 }
 
@@ -81,7 +104,7 @@ void sendHeapUDP() {
     snprintf(buf, sizeof(buf), "Time: %lu, Free: %u, MinFree: %u, WiFi: %s, RSSI: %d%s",
              millis() / 1000, freeHeap, minFreeHeap,
              connected ? "OK" : "DOWN", rssi, warnMsg);
-    if (connected) wifi_disconnected_msg_flag = false;  // Only clear if packet will actually be sent
+    if (connected) wifi_disconnected_msg_flag = false;  // Only clear if packet will actually be sent,
 
     udp.beginPacket(COMPUTER_IP, HEAP_UDP_PORT);
     udp.print(buf);
@@ -148,25 +171,35 @@ void setup() {
   }
 
   WiFi.mode(WIFI_STA);
-  Serial.printf("[WiFi] Attempting connect with SSID='%s', PASSWORD='%s'\n",
-                runtime_config.wifi.ssid,
-                runtime_config.wifi.password);
-  WiFi.begin(runtime_config.wifi.ssid, runtime_config.wifi.password);
+  int wifiAttempt = 0;
+  while (WiFi.status() != WL_CONNECTED) {
+    wifiAttempt++;
+    Serial.printf("[WiFi] Attempt #%d with SSID='%s'\n", wifiAttempt, runtime_config.wifi.ssid);
 
-  Serial.printf("Connecting to %s", runtime_config.wifi.ssid);
-  unsigned long wifiStart = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 20000) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
+    WiFi.disconnect();
+    WiFi.begin(runtime_config.wifi.ssid, runtime_config.wifi.password);
 
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("Connected! IP: %s, RSSI: %d dBm\n",
-                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
-  } else {
-    Serial.println("WiFi connection failed!");
+    Serial.printf("Connecting to %s", runtime_config.wifi.ssid);
+    unsigned long wifiStart = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < WIFI_SETUP_CONNECT_TIMEOUT_MS) {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+      break;
+    }
+
+    wl_status_t status = WiFi.status();
+    const char* failMessage = wifiFailureToDisplayMessage(status);
+    Serial.printf("[WiFi] Attempt #%d failed, status=%d (%s)\n", wifiAttempt, static_cast<int>(status), failMessage);
+    if (renderer) renderer->showMessage(failMessage);
+    delay(WIFI_SETUP_RETRY_MESSAGE_MS);
   }
+
+  Serial.printf("Connected! IP: %s, RSSI: %d dBm\n",
+                WiFi.localIP().toString().c_str(), WiFi.RSSI());
 
   // =========================================
   // 4. Synchronize clock
@@ -254,7 +287,7 @@ void loop() {
 
     if (!ensureWiFiConnected(runtime_config.wifi.ssid, runtime_config.wifi.password, 10000)) {
       Serial.println("[Main] No WiFi - skipping fetch");
-      if (renderer) renderer->showMessage("No WiFi");
+      if (renderer) renderer->showMessage(wifiFailureToDisplayMessage(WiFi.status()));
     } else if (bus_fetcher == nullptr) {
       Serial.println("[Main] No fetcher configured for this build state");
       if (renderer) renderer->showMessage("No Fetcher");
