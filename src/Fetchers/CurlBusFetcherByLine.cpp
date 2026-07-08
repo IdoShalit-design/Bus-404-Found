@@ -210,7 +210,7 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
     }
     
     // Line not found in any of the visits
-    Serial.printf("[CurlBuseFetcherByLine] Line %s not found at station %s\n", bus.line, bus.stationId);
+    Serial.printf("[CurlBusFetcherByLine] Line %s not found at station %s\n", bus.line, bus.stationId);
     return false;
 }
 
