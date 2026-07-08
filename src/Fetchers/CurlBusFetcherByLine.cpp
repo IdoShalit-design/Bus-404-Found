@@ -1,6 +1,6 @@
 /**
- * @file CurlBuseFetcherByLine.cpp
- * @brief Implementation of the CurlBuseFetcherByLine class for fetching real-time bus data.
+ * @file CurlBusFetcherByLine.cpp
+ * @brief Implementation of the CurlBusFetcherByLine class for fetching real-time bus data.
  * 
  * This fetcher retrieves bus arrival times from the CurlBus API (curlbus.app),
  * which provides SIRI real-time transit data for Israeli public transportation.
@@ -11,7 +11,7 @@
  *   - Response: JSON with visits array containing bus arrivals
  */
 
-#include "Fetchers/CurlBuseFetcherByLine.h"
+#include "Fetchers/CurlBusFetcherByLine.h"
 
 // =========================================
 // Constructor & Destructor
@@ -21,17 +21,17 @@
  * @brief Constructor - allocates JSON buffer once on heap.
  * This avoids heap fragmentation from repeated allocations.
  */
-CurlBuseFetcherByLine::CurlBuseFetcherByLine() 
+CurlBusFetcherByLine::CurlBusFetcherByLine() 
     : _doc(new DynamicJsonDocument(CURLBUS_JSON_BUFFER_SIZE)) {
     if (!_doc) {
-        Serial.println("[CurlBuseFetcherByLine] FATAL: Failed to allocate JSON buffer!");
+        Serial.println("[CurlBusFetcherByLine] FATAL: Failed to allocate JSON buffer!");
     }
     _url[0] = '\0';
     // Skip HTTPS certificate verification (curlbus.app is a public API)
     _secureClient.setInsecure();
     _secureClient.setTimeout(10);  // 10 second timeout for TLS handshake
     #ifdef DEBUG
-    Serial.printf("[CurlBuseFetcherByLine] Initialized with %d byte JSON buffer\n",
+    Serial.printf("[CurlBusFetcherByLine] Initialized with %d byte JSON buffer\n",
          CURLBUS_JSON_BUFFER_SIZE);
     #endif
 }
@@ -39,10 +39,10 @@ CurlBuseFetcherByLine::CurlBuseFetcherByLine()
 /**
  * @brief Destructor - frees the pre-allocated JSON buffer.
  */
-CurlBuseFetcherByLine::~CurlBuseFetcherByLine() {
+CurlBuseFetcherByLine::~CurlBusFetcherByLine() {
     delete _doc;
     #ifdef DEBUG
-    Serial.println("[CurlBuseFetcherByLine] Destroyed, JSON buffer freed");
+    Serial.println("[CurlBusFetcherByLine] Destroyed, JSON buffer freed");
     #endif
 }
 
@@ -58,9 +58,9 @@ CurlBuseFetcherByLine::~CurlBuseFetcherByLine() {
  * @return true if the bus line was found and ETA was updated.
  * @return false if HTTP request failed, parsing failed, or line not found.
  */
-bool CurlBuseFetcherByLine::update(BusTarget& bus) {
+bool CurlBusFetcherByLine::update(BusTarget& bus) {
     if (!_doc) {
-        Serial.println("[CurlBuseFetcherByLine] JSON buffer not allocated!");
+        Serial.println("[CurlBusFetcherByLine] JSON buffer not allocated!");
         return false;
     }
     
@@ -74,7 +74,7 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
     int httpCode = -1;
     for (int attempt = 0; attempt < 2; attempt++) {
         if (attempt > 0) {
-            Serial.printf("[CurlBuseFetcherByLine] Retry %d for station %s\n", attempt, bus.stationId);
+            Serial.printf("[CurlBusFetcherByLine] Retry %d for station %s\n", attempt, bus.stationId);
             delay(500);  // Short delay before retry
         }
         
@@ -95,7 +95,7 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
     
     // Check HTTP response status
     if (httpCode != HTTP_CODE_OK) {
-        Serial.printf("[CurlBuseFetcherByLine] HTTP GET failed, code: %d\n", httpCode);
+        Serial.printf("[CurlBusFetcherByLine] HTTP GET failed, code: %d\n", httpCode);
         http.end();
         _secureClient.stop();
         return false;
@@ -130,13 +130,13 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
     _secureClient.stop();  // Always close TLS after request to prevent stale connections
     
     if (error) {
-        Serial.printf("[CurlBuseFetcherByLine] JSON parse failed: %s\n", error.c_str());
+        Serial.printf("[CurlBusFetcherByLine] JSON parse failed: %s\n", error.c_str());
         return false;
     }
     
     // Check for API-level errors in response
     if (!(*_doc)["errors"].isNull() && (*_doc)["errors"].size() > 0) {
-        Serial.println("[CurlBuseFetcherByLine] API returned errors");
+        Serial.println("[CurlBusFetcherByLine] API returned errors");
         return false;
     }
     
@@ -147,7 +147,7 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
     JsonArray visits = (*_doc)["visits"][bus.stationId];
     
     if (visits.isNull() || visits.size() == 0) {
-        Serial.printf("[CurlBuseFetcherByLine] No visits found for station %s\n", bus.stationId);
+        Serial.printf("[CurlBusFetcherByLine] No visits found for station %s\n", bus.stationId);
         return false;
     }
     
@@ -201,7 +201,7 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
                 }
                 
                 #ifdef DEBUG
-                Serial.printf("[CurlBuseFetcherByLine] Line %s at station %s: ETA %s (%d min)\n", 
+                Serial.printf("[CurlBusFetcherByLine] Line %s at station %s: ETA %s (%d min)\n", 
                               bus.line, bus.stationId, bus.last_known_ETA, bus.minutes_remaining);
                 #endif
                 return true;
