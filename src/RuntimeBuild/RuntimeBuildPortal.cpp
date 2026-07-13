@@ -183,20 +183,29 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         }
     });
 
-    // Android's captive-portal probe: expects exactly 204 No Content to consider
-    // the network as having internet access and stop routing via mobile data.
-    server.on("/generate_204", HTTP_GET, [&server]() {
-        server.send(204, "text/plain", "");
+    // Android captive-portal probe. Returning 302 keeps the network in
+    // "captive portal" state so Android's sign-in WebView stays bound to
+    // the WiFi interface. Returning 204 would mark the network as "has
+    // internet" and cancel the WiFi binding, causing all subsequent requests
+    // (including the portal page load) to route through cellular.
+    server.on("/generate_204", HTTP_GET, [&apIp, &server]() {
+        String url = String("http://") + apIp.toString() + "/";
+        server.sendHeader("Location", url, true);
+        server.send(302, "text/plain", "");
     });
 
-    // Android alternative probe path.
-    server.on("/hotspot-detect.html", HTTP_GET, [&server]() {
-        server.send(204, "text/plain", "");
+    // iOS captive-portal probe. Returning anything other than the "Success"
+    // page triggers the captive portal popup and keeps the WebView WiFi-bound.
+    server.on("/hotspot-detect.html", HTTP_GET, [&apIp, &server]() {
+        String url = String("http://") + apIp.toString() + "/";
+        server.sendHeader("Location", url, true);
+        server.send(302, "text/plain", "");
     });
 
     // Windows / older captive-portal redirect.
-    server.on("/fwlink", HTTP_GET, [&server]() {
-        server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.on("/fwlink", HTTP_GET, [&apIp, &server]() {
+        String url = String("http://") + apIp.toString() + "/";
+        server.sendHeader("Location", url, true);
         server.send(302, "text/plain", "");
     });
 
@@ -315,8 +324,9 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         submissionState.details = connected ? "Config saved. Wi-Fi connected." : "Config saved. Wi-Fi connect failed.";
     });
 
-    server.onNotFound([&server]() {
-        server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.onNotFound([&apIp, &server]() {
+        String url = String("http://") + apIp.toString() + "/";
+        server.sendHeader("Location", url, true);
         server.send(302, "text/plain", "");
     });
 
