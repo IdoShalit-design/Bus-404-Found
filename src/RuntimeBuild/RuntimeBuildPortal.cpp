@@ -183,11 +183,18 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         }
     });
 
+    // Android's captive-portal probe: expects exactly 204 No Content to consider
+    // the network as having internet access and stop routing via mobile data.
     server.on("/generate_204", HTTP_GET, [&server]() {
-        server.sendHeader("Location", "http://192.168.4.1/", true);
-        server.send(302, "text/plain", "");
+        server.send(204, "text/plain", "");
     });
 
+    // Android alternative probe path.
+    server.on("/hotspot-detect.html", HTTP_GET, [&server]() {
+        server.send(204, "text/plain", "");
+    });
+
+    // Windows / older captive-portal redirect.
     server.on("/fwlink", HTTP_GET, [&server]() {
         server.sendHeader("Location", "http://192.168.4.1/", true);
         server.send(302, "text/plain", "");
