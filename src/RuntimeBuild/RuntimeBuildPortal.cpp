@@ -21,7 +21,6 @@ struct SubmissionState {
 };
 
 bool tryStaConnect(const char* ssid, const char* password, unsigned long timeoutMs) {
-    WiFi.disconnect();
     WiFi.begin(ssid, password);
 
     unsigned long start = millis();
@@ -131,13 +130,39 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         return PORTAL_INTERNAL_ERROR;
     }
 
+    // Ensure a clean WiFi state before starting the AP: stop any background
+    // reconnect attempts that would fight over the radio channel.
+    WiFi.setAutoReconnect(false);
+    WiFi.disconnect(false);
+    delay(100);
+
     WiFi.mode(WIFI_AP_STA);
+    delay(100);  // Let the mode transition settle before starting the AP.
+
     if (!WiFi.softAP(kApSsid)) {
         Serial.println("[RuntimeBuildPortal] Failed to start AP");
+        WiFi.setAutoReconnect(true);
         return PORTAL_INTERNAL_ERROR;
     }
 
-    IPAddress apIp = WiFi.softAPIP();
+    // softAPIP() can return 0.0.0.0 for a brief window after softAP() returns.
+    // Wait until the interface has its real address before handing it to the
+    // DNS server, otherwise the wildcard redirect points at 0.0.0.0.
+    IPAddress apIp;
+    {
+        unsigned long ipWait = millis();
+        while ((apIp = WiFi.softAPIP()) == IPAddress(0, 0, 0, 0) && millis() - ipWait < 3000) {
+            delay(50);
+        }
+    }
+
+    if (apIp == IPAddress(0, 0, 0, 0)) {
+        Serial.println("[RuntimeBuildPortal] AP IP not ready after timeout");
+        WiFi.softAPdisconnect(true);
+        WiFi.setAutoReconnect(true);
+        return PORTAL_INTERNAL_ERROR;
+    }
+
     dnsServer.start(53, "*", apIp);
 
     server.on("/", HTTP_GET, [&server]() {
@@ -272,11 +297,15 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
             return;
         }
 
+        // Respond immediately so the browser doesn't time out waiting while
+        // we spend up to RUNTIME_BUILD_PORTAL_STA_CONNECT_TIMEOUT_MS trying
+        // to connect to the home network.
+        server.send(200, "text/html", buildResultHtml("Config saved. Connecting to Wi-Fi\u2026"));
+
         const bool connected = tryStaConnect(ssidValue.c_str(), passwordValue.c_str(), RUNTIME_BUILD_PORTAL_STA_CONNECT_TIMEOUT_MS);
         submissionState.finished = true;
         submissionState.result = connected ? PORTAL_SAVE_AND_CONNECT_OK : PORTAL_SAVE_OK_CONNECT_FAILED;
         submissionState.details = connected ? "Config saved. Wi-Fi connected." : "Config saved. Wi-Fi connect failed.";
-        server.send(200, "text/html", buildResultHtml(submissionState.details));
     });
 
     server.onNotFound([&server]() {
@@ -310,6 +339,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
     dnsServer.stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
 
     Serial.printf("[RuntimeBuildPortal] Exit: %d (%s)\n", static_cast<int>(submissionState.result), submissionState.details);
     return submissionState.result;
