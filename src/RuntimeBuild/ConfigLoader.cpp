@@ -39,6 +39,16 @@ void setError(char* errorBuffer, size_t errorBufferLen, const char* message) {
     }
 }
 
+// Parsed config supplies only the lookup keys; blank the live arrival fields
+// so a target is well-defined before the first fetch.
+void resetArrivalState(BusTarget& target) {
+    target.destination[0] = '\0';
+    target.is_realtime = false;
+    target.last_known_ETA[0] = '\0';
+    target.minutes_remaining = 0;
+    target.no_data = false;
+}
+
 void copyBounded(char* dst, size_t dstSize, const char* src) {
     if (dst == nullptr || dstSize == 0) {
         return;
@@ -147,7 +157,7 @@ bool parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst buildIn
     for (int i = 0; i < MAX_RUNTIME_TARGETS; i++) {
         copyBounded(outConfig.bus.targets[i].stationId, sizeof(outConfig.bus.targets[i].stationId), stationId);
         outConfig.bus.targets[i].line[0] = '\0';
-        outConfig.bus.targets[i].destination[0] = '\0';
+        resetArrivalState(outConfig.bus.targets[i]);
     }
 
     outConfig.bus.targetCount = MAX_RUNTIME_TARGETS;
@@ -188,7 +198,7 @@ bool parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfo
 
         copyBounded(outConfig.bus.targets[idx].stationId, sizeof(outConfig.bus.targets[idx].stationId), stationId);
         copyBounded(outConfig.bus.targets[idx].line, sizeof(outConfig.bus.targets[idx].line), lineText);
-        outConfig.bus.targets[idx].destination[0] = '\0';
+        resetArrivalState(outConfig.bus.targets[idx]);
 
         idx++;
     }

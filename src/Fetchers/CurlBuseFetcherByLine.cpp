@@ -63,18 +63,22 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
         Serial.println("[CurlBuseFetcherByLine] JSON buffer not allocated!");
         return false;
     }
-    
+
+    // Bind as const char* so ArduinoJson stores the pointer for filter keys
+    // instead of copying the string into the document pool.
+    const char* stationId = bus.stationId;
+
     HTTPClient http;
     
     // =========================================
     // Step 1: Build and send HTTP request (with retry)
     // =========================================
-    snprintf(_url, sizeof(_url), "%s%s?format=json", CURLBUS_API_URL, bus.stationId);
+    snprintf(_url, sizeof(_url), "%s%s?format=json", CURLBUS_API_URL, stationId);
     
     int httpCode = -1;
     for (int attempt = 0; attempt < 2; attempt++) {
         if (attempt > 0) {
-            Serial.printf("[CurlBuseFetcherByLine] Retry %d for station %s\n", attempt, bus.stationId);
+            Serial.printf("[CurlBuseFetcherByLine] Retry %d for station %s\n", attempt, stationId);
             delay(500);  // Short delay before retry
         }
         
@@ -109,10 +113,10 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
     // unneeded data during streaming parse, so we never buffer it all.
     StaticJsonDocument<1024> filter;
     filter["errors"] = true;
-    filter["visits"][bus.stationId][0]["line_name"] = true;
-    filter["visits"][bus.stationId][0]["eta"] = true;
-    filter["visits"][bus.stationId][0]["location"] = true;  // For real-time detection
-    filter["visits"][bus.stationId][0]["static_info"]["route"]["destination"]["name"]["EN"] = true;  // Destination name
+    filter["visits"][stationId][0]["line_name"] = true;
+    filter["visits"][stationId][0]["eta"] = true;
+    filter["visits"][stationId][0]["location"] = true;  // For real-time detection
+    filter["visits"][stationId][0]["static_info"]["route"]["destination"]["name"]["EN"] = true;  // Destination name
     
     // =========================================
     // Step 3: Parse JSON directly from HTTP stream (no buffering)
@@ -144,10 +148,10 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
     // Step 4: Navigate to visits for this station
     // =========================================
     // Response structure: { "visits": { "<stationId>": [ {...}, {...} ] } }
-    JsonArray visits = (*_doc)["visits"][bus.stationId];
+    JsonArray visits = (*_doc)["visits"][stationId];
     
     if (visits.isNull() || visits.size() == 0) {
-        Serial.printf("[CurlBuseFetcherByLine] No visits found for station %s\n", bus.stationId);
+        Serial.printf("[CurlBuseFetcherByLine] No visits found for station %s\n", stationId);
         return false;
     }
     
@@ -202,7 +206,7 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
                 
                 #ifdef DEBUG
                 Serial.printf("[CurlBuseFetcherByLine] Line %s at station %s: ETA %s (%d min)\n", 
-                              bus.line, bus.stationId, bus.last_known_ETA, bus.minutes_remaining);
+                              bus.line, stationId, bus.last_known_ETA, bus.minutes_remaining);
                 #endif
                 return true;
             }
@@ -210,7 +214,7 @@ bool CurlBuseFetcherByLine::update(BusTarget& bus) {
     }
     
     // Line not found in any of the visits
-    Serial.printf("[CurlBuseFetcherByLine] Line %s not found at station %s\n", bus.line, bus.stationId);
+    Serial.printf("[CurlBuseFetcherByLine] Line %s not found at station %s\n", bus.line, stationId);
     return false;
 }
 

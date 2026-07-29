@@ -58,8 +58,6 @@ App::App()
       _busFetcher(),
       _runtimeConfig(),
       _runtimeConfigLoaded(false),
-      _busTargets(),
-      _busTargetCount(0),
       _lastFetchTime(0),
       _lastHeapLogTime(0),
       _wifiDisconnected(false) {
@@ -86,7 +84,6 @@ void App::setup() {
     #endif
 
     loadConfig();
-    initBusTargets();
     connectWifi();
     syncClock();
     buildPipeline();
@@ -138,24 +135,7 @@ void App::loadConfig() {
     Serial.printf("[Config] Requested state: %s, concrete state: %s\n",
                   buildStateToString(_runtimeConfig.buildState),
                   buildStateToString(_runtimeConfig.concreteBuildState));
-}
-
-void App::initBusTargets() {
-    _busTargetCount = _runtimeConfig.bus.targetCount;
-    for (int i = 0; i < _busTargetCount; i++) {
-        // stationId and line alias _runtimeConfig's buffers, which outlive the targets.
-        _busTargets[i].stationId = _runtimeConfig.bus.targets[i].stationId;
-        _busTargets[i].line = _runtimeConfig.bus.targets[i].line;
-        strncpy(_busTargets[i].destination, _runtimeConfig.bus.targets[i].destination,
-                sizeof(_busTargets[i].destination) - 1);
-        _busTargets[i].destination[sizeof(_busTargets[i].destination) - 1] = '\0';
-        _busTargets[i].is_realtime = false;
-        _busTargets[i].last_known_ETA[0] = '\0';
-        _busTargets[i].minutes_remaining = 0;
-        _busTargets[i].no_data = false;
-    }
-
-    Serial.printf("[Config] Loaded %d targets\n", _busTargetCount);
+    Serial.printf("[Config] Loaded %d targets\n", _runtimeConfig.bus.targetCount);
 }
 
 void App::connectWifi() {
@@ -262,24 +242,27 @@ void App::fetchAndRender() {
     time_get_formatted(fetchTimeBuf, sizeof(fetchTimeBuf));
     Serial.println(fetchTimeBuf);
 
-    for (int i = 0; i < _busTargetCount; i++) {
-        bool success = _busFetcher->update(_busTargets[i]);
-        _busTargets[i].no_data = !success;
+    BusTarget* targets = _runtimeConfig.bus.targets;
+    const int targetCount = _runtimeConfig.bus.targetCount;
+
+    for (int i = 0; i < targetCount; i++) {
+        bool success = _busFetcher->update(targets[i]);
+        targets[i].no_data = !success;
 
         if (success) {
             Serial.printf("Line %s: %s (%d min) %s\n",
-                          _busTargets[i].line,
-                          _busTargets[i].last_known_ETA,
-                          _busTargets[i].minutes_remaining,
-                          _busTargets[i].is_realtime ? "[LIVE]" : "[SCHED]");
+                          targets[i].line,
+                          targets[i].last_known_ETA,
+                          targets[i].minutes_remaining,
+                          targets[i].is_realtime ? "[LIVE]" : "[SCHED]");
         } else {
-            Serial.printf("Line %s: No data\n", _busTargets[i].line);
+            Serial.printf("Line %s: No data\n", targets[i].line);
         }
     }
     Serial.println("-----------------------------");
 
     if (_renderer) {
-        _renderer->render(_busTargets, _busTargetCount);
+        _renderer->render(targets, targetCount);
     }
 }
 

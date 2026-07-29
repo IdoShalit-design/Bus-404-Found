@@ -5,11 +5,9 @@
 #include "Config.h"
 #include "RuntimeBuild/Builder.h"
 
+// Station/line/destination lengths live in Structs.h, shared with BusTarget.
 constexpr size_t MAX_WIFI_SSID_LEN = 33;
 constexpr size_t MAX_WIFI_PASSWORD_LEN = 65;
-constexpr size_t MAX_STATION_ID_LEN = 24;
-constexpr size_t MAX_LINE_LEN = 16;
-constexpr size_t MAX_DESTINATION_LEN = 48;
 constexpr uint8_t CONFIG_SCHEMA_VERSION = 1;
 
 struct WifiConfig {
@@ -17,14 +15,10 @@ struct WifiConfig {
     char password[MAX_WIFI_PASSWORD_LEN];
 };
 
-struct BusTargetConfig {
-    char stationId[MAX_STATION_ID_LEN];
-    char line[MAX_LINE_LEN];
-    char destination[MAX_DESTINATION_LEN];
-};
-
+// BusTarget owns its strings, so parsed config doubles as the live working set;
+// no separate config-side target struct or copy step is needed.
 struct BusConfig {
-    BusTargetConfig targets[MAX_RUNTIME_TARGETS];
+    BusTarget targets[MAX_RUNTIME_TARGETS];
     int targetCount;
 };
 

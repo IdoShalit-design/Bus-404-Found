@@ -32,7 +32,7 @@ bool MetroFetcherStub::update(BusTarget& bus) {
     const StubArrival& arrival = kStubArrivals[_nextIndex];
     _nextIndex = (_nextIndex + 1) % kStubCount;
 
-    bus.line = arrival.line;
+    copyBounded(bus.line, sizeof(bus.line), arrival.line);
     copyBounded(bus.destination, sizeof(bus.destination), arrival.destination);
     copyBounded(bus.last_known_ETA, sizeof(bus.last_known_ETA), arrival.eta);
     bus.is_realtime = arrival.isRealtime;

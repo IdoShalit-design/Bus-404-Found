@@ -175,7 +175,8 @@ bool CurlBusFetcherByStation::update(BusTarget& bus) {
     }
 
     const ArrivalData& arrival = _arrivals[_nextArrivalIndex++];
-    bus.line = arrival.line;
+    // Copy, don't alias: _arrivals is refilled in place by loadNextArrivals().
+    copyBounded(bus.line, sizeof(bus.line), arrival.line);
     copyBounded(bus.destination, sizeof(bus.destination), arrival.destination);
     copyBounded(bus.last_known_ETA, sizeof(bus.last_known_ETA), arrival.eta);
     bus.is_realtime = arrival.isRealtime;

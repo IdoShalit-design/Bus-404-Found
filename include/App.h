@@ -17,9 +17,7 @@
  * ownership and initialization order are explicit rather than implied by
  * declaration order.
  *
- * @note Non-copyable by design: each BusTarget holds const char* pointers into
- *       this instance's RuntimeConfig buffers, so the instance must stay at a
- *       fixed address for the lifetime of the program.
+ * @note Non-copyable: it exclusively owns the renderer and fetcher.
  */
 class App {
 public:
@@ -42,11 +40,10 @@ private:
     std::unique_ptr<IRenderer> _renderer;
     std::unique_ptr<IBusFetcher> _busFetcher;
 
+    // Owns the bus targets directly; they are both the parsed config and the
+    // live working set that fetchers update in place.
     RuntimeConfig _runtimeConfig;
     bool _runtimeConfigLoaded;
-
-    BusTarget _busTargets[MAX_RUNTIME_TARGETS];
-    int _busTargetCount;
 
     unsigned long _lastFetchTime;
     unsigned long _lastHeapLogTime;
@@ -55,7 +52,6 @@ private:
     // --- Startup steps, in the order setup() runs them ---
     void initDisplay();
     void loadConfig();
-    void initBusTargets();
     void connectWifi();
     void syncClock();
     void buildPipeline();
