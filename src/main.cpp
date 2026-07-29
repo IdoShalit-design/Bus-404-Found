@@ -25,10 +25,10 @@
 // =========================================
 
 // Display renderer
-IRenderer* renderer = nullptr;
+std::unique_ptr<IRenderer> renderer;
 
-// Generic fetcher pointer - concrete type determined by FETCHER_TYPE in Config.h
-IBusFetcher* bus_fetcher = nullptr;
+// Generic fetcher - concrete type determined by the resolved BuildState
+std::unique_ptr<IBusFetcher> bus_fetcher;
 
 // Runtime config loaded from LittleFS JSON files
 RuntimeConfig runtime_config;
@@ -121,7 +121,7 @@ void setup() {
   // =========================================
   // 1. Initialize display (first — show Loading... ASAP)
   // =========================================
-  renderer = new HUB75Display();
+  renderer = std::unique_ptr<IRenderer>(new HUB75Display());
   if (!renderer->init()) {
     Serial.println("[Main] FATAL: Display init failed");
     while (true) {
@@ -138,7 +138,7 @@ void setup() {
   // If SCREEN_DEBUG is enabled, run display tests and never return
   #if SCREEN_DEBUG
     Serial.println("[Main] SCREEN_DEBUG enabled - running screen tests");
-    ((HUB75Display*)renderer)->screen_tests();
+    ((HUB75Display*)renderer.get())->screen_tests();
     // screen_tests() never returns
   #endif
 
@@ -228,10 +228,8 @@ void setup() {
   }
 
   if (builtRenderer) {
-    if (renderer != nullptr) {
-      delete renderer;
-    }
-    renderer = builtRenderer.release();
+    // Assignment releases the previously owned renderer.
+    renderer = std::move(builtRenderer);
     if (!renderer->init()) {
       // Nothing to report on: the panel is dead once init() fails.
       Serial.println("[Build] FATAL: Replacement renderer init failed");
@@ -242,9 +240,9 @@ void setup() {
     renderer->showMessage("Build Ready");
   }
 
-  bus_fetcher = builtFetcher.release();
+  bus_fetcher = std::move(builtFetcher);
 
-  if (bus_fetcher == nullptr) {
+  if (!bus_fetcher) {
     Serial.println("[Build] No fetcher created for selected build state");
     if (renderer) renderer->showMessage("No Fetcher");
   }
@@ -277,7 +275,7 @@ void loop() {
     if (!ensureWiFiConnected(runtime_config.wifi.ssid, runtime_config.wifi.password, 10000)) {
       Serial.println("[Main] No WiFi - skipping fetch");
       if (renderer) renderer->showMessage(wifiFailureToDisplayMessage(WiFi.status()));
-    } else if (bus_fetcher == nullptr) {
+    } else if (!bus_fetcher) {
       Serial.println("[Main] No fetcher configured for this build state");
       if (renderer) renderer->showMessage("No Fetcher");
     } else {
