@@ -8,6 +8,12 @@
 
 namespace {
 
+constexpr ConfigResult kOk = {true, nullptr};
+
+ConfigResult failure(const char* message) {
+    return {false, message};
+}
+
 bool parseBuildState(const char* stateText, BuildState& outState) {
     if (stateText == nullptr) {
         return false;
@@ -31,12 +37,6 @@ bool parseBuildState(const char* stateText, BuildState& outState) {
     }
 
     return false;
-}
-
-void setError(char* errorBuffer, size_t errorBufferLen, const char* message) {
-    if (errorBuffer != nullptr && errorBufferLen > 0) {
-        snprintf(errorBuffer, errorBufferLen, "%s", message);
-    }
 }
 
 // Parsed config supplies only the lookup keys; blank the live arrival fields
@@ -63,11 +63,10 @@ void copyBounded(char* dst, size_t dstSize, const char* src) {
     dst[dstSize - 1] = '\0';
 }
 
-bool parseWifiConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseWifiConfig(RuntimeConfig& outConfig) {
     File wifiFile = LittleFS.open("/wifi_credentials.json", "r");
     if (!wifiFile) {
-        setError(errorBuffer, errorBufferLen, "Missing /wifi_credentials.json");
-        return false;
+        return failure("Missing /wifi_credentials.json");
     }
 
     StaticJsonDocument<512> wifiDoc;
@@ -75,46 +74,40 @@ bool parseWifiConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBu
     wifiFile.close();
 
     if (wifiErr) {
-        setError(errorBuffer, errorBufferLen, "Invalid wifi_credentials.json");
-        return false;
+        return failure("Invalid wifi_credentials.json");
     }
 
     JsonVariantConst versionValue = wifiDoc["version"];
     if (versionValue.isNull()) {
-        setError(errorBuffer, errorBufferLen, "wifi_credentials.json missing version");
-        return false;
+        return failure("wifi_credentials.json missing version");
     }
 
     int version = versionValue.as<int>();
     if (version != CONFIG_SCHEMA_VERSION) {
-        setError(errorBuffer, errorBufferLen, "wifi_credentials.json schema version mismatch");
-        return false;
+        return failure("wifi_credentials.json schema version mismatch");
     }
 
     const char* ssid = wifiDoc["ssid"];
     const char* password = wifiDoc["password"];
 
     if (ssid == nullptr || strlen(ssid) == 0) {
-        setError(errorBuffer, errorBufferLen, "wifi_credentials.json missing ssid");
-        return false;
+        return failure("wifi_credentials.json missing ssid");
     }
 
     if (password == nullptr || strlen(password) == 0) {
-        setError(errorBuffer, errorBufferLen, "wifi_credentials.json missing password");
-        return false;
+        return failure("wifi_credentials.json missing password");
     }
 
     copyBounded(outConfig.wifi.ssid, sizeof(outConfig.wifi.ssid), ssid);
     copyBounded(outConfig.wifi.password, sizeof(outConfig.wifi.password), password);
 
-    return true;
+    return kOk;
 }
 
-bool parseBuildStateConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseBuildStateConfig(RuntimeConfig& outConfig) {
     File stateFile = LittleFS.open("/build_state.json", "r");
     if (!stateFile) {
-        setError(errorBuffer, errorBufferLen, "Missing /build_state.json");
-        return false;
+        return failure("Missing /build_state.json");
     }
 
     StaticJsonDocument<256> stateDoc;
@@ -122,36 +115,31 @@ bool parseBuildStateConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t e
     stateFile.close();
 
     if (stateErr) {
-        setError(errorBuffer, errorBufferLen, "Invalid build_state.json");
-        return false;
+        return failure("Invalid build_state.json");
     }
 
     JsonVariantConst versionValue = stateDoc["version"];
     if (versionValue.isNull()) {
-        setError(errorBuffer, errorBufferLen, "build_state.json missing version");
-        return false;
+        return failure("build_state.json missing version");
     }
 
     int version = versionValue.as<int>();
     if (version != CONFIG_SCHEMA_VERSION) {
-        setError(errorBuffer, errorBufferLen, "build_state.json schema version mismatch");
-        return false;
+        return failure("build_state.json schema version mismatch");
     }
 
     const char* stateText = stateDoc["state"];
     if (!parseBuildState(stateText, outConfig.buildState)) {
-        setError(errorBuffer, errorBufferLen, "build_state.json has unknown state");
-        return false;
+        return failure("build_state.json has unknown state");
     }
 
-    return true;
+    return kOk;
 }
 
-bool parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj) {
     const char* stationId = buildInfoObj["stationId"];
     if (stationId == nullptr || strlen(stationId) == 0) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing stationId");
-        return false;
+        return failure("build_info.json missing stationId");
     }
 
     for (int i = 0; i < MAX_RUNTIME_TARGETS; i++) {
@@ -161,24 +149,21 @@ bool parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst buildIn
     }
 
     outConfig.bus.targetCount = MAX_RUNTIME_TARGETS;
-    return true;
+    return kOk;
 }
 
-bool parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj) {
     JsonArrayConst targets = buildInfoObj["targets"].as<JsonArrayConst>();
     if (targets.isNull()) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing targets array");
-        return false;
+        return failure("build_info.json missing targets array");
     }
 
     if (targets.size() == 0) {
-        setError(errorBuffer, errorBufferLen, "targets array cannot be empty");
-        return false;
+        return failure("targets array cannot be empty");
     }
 
     if (targets.size() > MAX_RUNTIME_TARGETS) {
-        setError(errorBuffer, errorBufferLen, "Too many targets in build_info.json");
-        return false;
+        return failure("Too many targets in build_info.json");
     }
 
     int idx = 0;
@@ -188,12 +173,10 @@ bool parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfo
         const char* lineText = target["line"];
 
         if (stationId == nullptr || strlen(stationId) == 0) {
-            setError(errorBuffer, errorBufferLen, "build_info.json target missing stationId");
-            return false;
+            return failure("build_info.json target missing stationId");
         }
         if (lineText == nullptr || strlen(lineText) == 0) {
-            setError(errorBuffer, errorBufferLen, "build_info.json target missing line");
-            return false;
+            return failure("build_info.json target missing line");
         }
 
         copyBounded(outConfig.bus.targets[idx].stationId, sizeof(outConfig.bus.targets[idx].stationId), stationId);
@@ -204,14 +187,13 @@ bool parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfo
     }
 
     outConfig.bus.targetCount = idx;
-    return true;
+    return kOk;
 }
 
-bool parseBuildInfoConfig(RuntimeConfig& outConfig, BuildState concreteState, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseBuildInfoConfig(RuntimeConfig& outConfig, BuildState concreteState) {
     File buildInfoFile = LittleFS.open("/build_info.json", "r");
     if (!buildInfoFile) {
-        setError(errorBuffer, errorBufferLen, "Missing /build_info.json");
-        return false;
+        return failure("Missing /build_info.json");
     }
 
     StaticJsonDocument<4096> buildInfoDoc;
@@ -219,84 +201,75 @@ bool parseBuildInfoConfig(RuntimeConfig& outConfig, BuildState concreteState, ch
     buildInfoFile.close();
 
     if (buildInfoErr) {
-        setError(errorBuffer, errorBufferLen, "Invalid build_info.json");
-        return false;
+        return failure("Invalid build_info.json");
     }
 
     JsonVariantConst versionValue = buildInfoDoc["version"];
     if (versionValue.isNull()) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing version");
-        return false;
+        return failure("build_info.json missing version");
     }
 
     int version = versionValue.as<int>();
     if (version != CONFIG_SCHEMA_VERSION) {
-        setError(errorBuffer, errorBufferLen, "build_info.json schema version mismatch");
-        return false;
+        return failure("build_info.json schema version mismatch");
     }
 
     JsonObjectConst buildInfoObj = buildInfoDoc.as<JsonObjectConst>();
     switch (concreteState) {
         case BUS_BY_STATION:
         case NY_METRO_BY_STATION:
-            return parseBuildInfoStationMode(outConfig, buildInfoObj, errorBuffer, errorBufferLen);
+            return parseBuildInfoStationMode(outConfig, buildInfoObj);
         case BUS_BY_LINES:
-            return parseBuildInfoLinesMode(outConfig, buildInfoObj, errorBuffer, errorBufferLen);
+            return parseBuildInfoLinesMode(outConfig, buildInfoObj);
         case USE_CURRENT_BUILD:
-            setError(errorBuffer, errorBufferLen, "Concrete state cannot be USE_CURRENT_BUILD");
-            return false;
+            return failure("Concrete state cannot be USE_CURRENT_BUILD");
         default:
-            setError(errorBuffer, errorBufferLen, "Unknown build state for build_info parsing");
-            return false;
+            return failure("Unknown build state for build_info parsing");
     }
 }
 
 }  // namespace
 
-bool loadRuntimeConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult loadRuntimeConfig(RuntimeConfig& outConfig) {
     if (!LittleFS.begin(false)) {
-        setError(errorBuffer, errorBufferLen, "LittleFS mount failed");
-        return false;
+        return failure("LittleFS mount failed");
     }
 
-    if (!parseWifiConfig(outConfig, errorBuffer, errorBufferLen)) {
-        return false;
+    ConfigResult result = parseWifiConfig(outConfig);
+    if (!result.ok) {
+        return result;
     }
 
-    if (!parseBuildStateConfig(outConfig, errorBuffer, errorBufferLen)) {
-        return false;
+    result = parseBuildStateConfig(outConfig);
+    if (!result.ok) {
+        return result;
     }
 
-    if (!resolveConcreteBuildState(outConfig, outConfig.concreteBuildState, errorBuffer, errorBufferLen)) {
-        return false;
+    result = resolveConcreteBuildState(outConfig, outConfig.concreteBuildState);
+    if (!result.ok) {
+        return result;
     }
 
-    if (!parseBuildInfoConfig(outConfig, outConfig.concreteBuildState, errorBuffer, errorBufferLen)) {
-        return false;
-    }
-
-    return true;
+    return parseBuildInfoConfig(outConfig, outConfig.concreteBuildState);
 }
 
-bool resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState) {
     if (config.buildState != USE_CURRENT_BUILD) {
         outState = config.buildState;
-        return true;
+        return kOk;
     }
 
     BuildState persistedConcreteState = BUS_BY_STATION;
     if (!loadLastConcreteBuildStateConfig(persistedConcreteState)) {
-        setError(errorBuffer, errorBufferLen, "Missing /last_concrete_build_state.json");
-        return false;
+        return failure("Missing /last_concrete_build_state.json");
     }
 
     if (persistedConcreteState == USE_CURRENT_BUILD) {
-        setError(errorBuffer, errorBufferLen, "last_concrete_build_state.json cannot be USE_CURRENT_BUILD");
-        return false;
+        return failure("last_concrete_build_state.json cannot be USE_CURRENT_BUILD");
     }
 
     outState = persistedConcreteState;
-    return true;
+    return kOk;
 }
 
 const char* configErrorToDisplayMessage(const char* configError) {

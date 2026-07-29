@@ -125,10 +125,10 @@ void App::initDisplay() {
 }
 
 void App::loadConfig() {
-    char configError[128] = {0};
-    if (!loadRuntimeConfig(_runtimeConfig, configError, sizeof(configError))) {
-        Serial.printf("[Config] ERROR: %s\n", configError);
-        halt(configErrorToDisplayMessage(configError));
+    const ConfigResult result = loadRuntimeConfig(_runtimeConfig);
+    if (!result.ok) {
+        Serial.printf("[Config] ERROR: %s\n", result.error);
+        halt(configErrorToDisplayMessage(result.error));
     }
     _runtimeConfigLoaded = true;
 
