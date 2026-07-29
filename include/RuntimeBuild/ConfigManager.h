@@ -48,6 +48,17 @@ bool saveLastConcreteBuildStateConfig(BuildState state);
 bool saveWifiCredentialsConfig(const char* ssid, const char* password);
 
 /**
+ * @brief Loads previously persisted Wi-Fi credentials from /wifi_credentials.json.
+ *
+ * @param ssidOut Destination buffer for the SSID.
+ * @param ssidOutLen Size of ssidOut in bytes.
+ * @param passwordOut Destination buffer for the password.
+ * @param passwordOutLen Size of passwordOut in bytes.
+ * @return true when a valid saved config was found and copied out, false otherwise.
+ */
+bool loadWifiCredentialsConfig(char* ssidOut, size_t ssidOutLen, char* passwordOut, size_t passwordOutLen);
+
+/**
  * @brief Persists station-only build info to /build_info.json.
  *
  * @param stationId Station identifier.
@@ -56,14 +67,17 @@ bool saveWifiCredentialsConfig(const char* ssid, const char* password);
 bool saveBuildInfoStationConfig(const char* stationId);
 
 /**
- * @brief Persists station + line numbers build info to /build_info.json.
+ * @brief Persists station+line target pairs build info to /build_info.json.
  *
- * @param stationId Station identifier.
- * @param lines Array of line number strings.
- * @param lineCount Number of lines in the array.
+ * Each entry i pairs stationIds[i] with lines[i], allowing up to 3
+ * independent (station, line) targets rather than one shared station.
+ *
+ * @param stationIds Array of station identifier strings.
+ * @param lines Array of line number strings, parallel to stationIds.
+ * @param targetCount Number of entries in both arrays.
  * @return true when file write succeeds, false otherwise.
  */
-bool saveBuildInfoLinesConfig(const char* stationId, const char* const* lines, size_t lineCount);
+bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* lines, size_t targetCount);
 
 /**
  * @brief Persists USE_CURRENT_BUILD metadata to /build_info.json.

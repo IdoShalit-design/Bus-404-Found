@@ -1,5 +1,6 @@
 #include "RuntimeBuild/RuntimeBuildPortal.h"
 
+#include <ArduinoJson.h>
 #include <DNSServer.h>
 #include <LittleFS.h>
 #include <WebServer.h>
@@ -12,7 +13,8 @@
 namespace {
 
 constexpr const char* kApSsid = "Bus-404-Found-Setup";
-constexpr size_t kLineCsvMaxLen = 128;
+constexpr const char* kLineStationFields[MAX_RUNTIME_TARGETS] = {"line1StationId", "line2StationId", "line3StationId"};
+constexpr const char* kLineNumberFields[MAX_RUNTIME_TARGETS] = {"line1Number", "line2Number", "line3Number"};
 
 struct SubmissionState {
     bool finished;
@@ -67,40 +69,50 @@ bool serveStaticFile(WebServer& server, const char* path, const char* contentTyp
     return true;
 }
 
-size_t parseLineCsv(const String& csv, char output[MAX_RUNTIME_TARGETS][MAX_LINE_LEN], const char* linePtrs[MAX_RUNTIME_TARGETS]) {
-    if (csv.length() == 0 || csv.length() >= kLineCsvMaxLen) {
-        return 0;
-    }
-
+// Reads up to MAX_RUNTIME_TARGETS (stationId, line) pairs from the form.
+// A pair is only included if both fields are non-empty; a pair with just one
+// field filled in is treated as a validation error. Returns 0 on any error.
+size_t parseLinePairs(WebServer& server,
+                       char stationStorage[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN],
+                       char lineStorage[MAX_RUNTIME_TARGETS][MAX_LINE_LEN],
+                       const char* stationPtrs[MAX_RUNTIME_TARGETS],
+                       const char* linePtrs[MAX_RUNTIME_TARGETS],
+                       const char** errorDetails) {
     size_t count = 0;
-    int start = 0;
 
-    while (start < static_cast<int>(csv.length()) && count < MAX_RUNTIME_TARGETS) {
-        int comma = csv.indexOf(',', start);
-        String token = comma == -1 ? csv.substring(start) : csv.substring(start, comma);
-        token.trim();
+    for (size_t i = 0; i < MAX_RUNTIME_TARGETS; i++) {
+        String stationValue = server.arg(kLineStationFields[i]);
+        String lineValue = server.arg(kLineNumberFields[i]);
+        stationValue.trim();
+        lineValue.trim();
 
-        if (token.length() > 0) {
-            if (token.length() >= MAX_LINE_LEN) {
-                return 0;
-            }
+        const bool hasStation = stationValue.length() > 0;
+        const bool hasLine = lineValue.length() > 0;
 
-            token.toCharArray(output[count], MAX_LINE_LEN);
-            linePtrs[count] = output[count];
-            count++;
+        if (!hasStation && !hasLine) {
+            continue;
         }
 
-        if (comma == -1) {
-            break;
+        if (!hasStation || !hasLine) {
+            *errorDetails = "Each line entry needs both a station ID and a line number";
+            return 0;
         }
-        start = comma + 1;
+
+        if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN) ||
+            !isLengthValid(lineValue.c_str(), MAX_LINE_LEN)) {
+            *errorDetails = "Invalid station ID or line number";
+            return 0;
+        }
+
+        stationValue.toCharArray(stationStorage[count], MAX_STATION_ID_LEN);
+        lineValue.toCharArray(lineStorage[count], MAX_LINE_LEN);
+        stationPtrs[count] = stationStorage[count];
+        linePtrs[count] = lineStorage[count];
+        count++;
     }
 
     if (count == 0) {
-        return 0;
-    }
-
-    if (csv.indexOf(',', start) != -1) {
+        *errorDetails = "Provide 1-3 station/line pairs";
         return 0;
     }
 
@@ -171,18 +183,6 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         }
     });
 
-    server.on("/portal.css", HTTP_GET, [&server]() {
-        if (!serveStaticFile(server, "/portal/portal.css", "text/css")) {
-            server.send(404, "text/plain", "Missing /portal/portal.css");
-        }
-    });
-
-    server.on("/portal.js", HTTP_GET, [&server]() {
-        if (!serveStaticFile(server, "/portal/portal.js", "application/javascript")) {
-            server.send(404, "text/plain", "Missing /portal/portal.js");
-        }
-    });
-
     // Android captive-portal probe. Returning 302 keeps the network in
     // "captive portal" state so Android's sign-in WebView stays bound to
     // the WiFi interface. Returning 204 would mark the network as "has
@@ -209,12 +209,28 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         server.send(302, "text/plain", "");
     });
 
+    server.on("/wifi-status", HTTP_GET, [&server]() {
+        char savedSsid[MAX_WIFI_SSID_LEN] = {};
+        char savedPassword[MAX_WIFI_PASSWORD_LEN] = {};
+
+        if (!loadWifiCredentialsConfig(savedSsid, sizeof(savedSsid), savedPassword, sizeof(savedPassword))) {
+            server.send(200, "application/json", "{\"hasSaved\":false}");
+            return;
+        }
+
+        StaticJsonDocument<192> doc;
+        doc["hasSaved"] = true;
+        doc["ssid"] = savedSsid;
+        String body;
+        serializeJson(doc, body);
+        server.send(200, "application/json", body);
+    });
+
     server.on("/submit", HTTP_POST, [&server, &submissionState]() {
         BuildState selectedState = BUS_BY_STATION;
 
         const String modeValue = server.arg("state");
-        const String ssidValue = server.arg("ssid");
-        const String passwordValue = server.arg("password");
+        const bool useSavedWifi = server.arg("useSavedWifi") == "1";
 
         if (!parseBuildStateFromForm(modeValue, selectedState)) {
             submissionState.finished = true;
@@ -224,21 +240,41 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
             return;
         }
 
-        if (!isLengthValid(ssidValue.c_str(), MAX_WIFI_SSID_LEN) ||
-            !isLengthValid(passwordValue.c_str(), MAX_WIFI_PASSWORD_LEN)) {
-            submissionState.finished = true;
-            submissionState.result = PORTAL_VALIDATION_ERROR;
-            submissionState.details = "Invalid Wi-Fi credentials";
-            server.send(400, "text/html", buildResultHtml(submissionState.details));
-            return;
-        }
+        char savedSsid[MAX_WIFI_SSID_LEN] = {};
+        char savedPassword[MAX_WIFI_PASSWORD_LEN] = {};
+        String ssidValue;
+        String passwordValue;
 
-        if (!saveWifiCredentialsConfig(ssidValue.c_str(), passwordValue.c_str())) {
-            submissionState.finished = true;
-            submissionState.result = PORTAL_INTERNAL_ERROR;
-            submissionState.details = "Failed to save Wi-Fi config";
-            server.send(500, "text/html", buildResultHtml(submissionState.details));
-            return;
+        if (useSavedWifi) {
+            if (!loadWifiCredentialsConfig(savedSsid, sizeof(savedSsid), savedPassword, sizeof(savedPassword))) {
+                submissionState.finished = true;
+                submissionState.result = PORTAL_VALIDATION_ERROR;
+                submissionState.details = "No saved Wi-Fi credentials found";
+                server.send(400, "text/html", buildResultHtml(submissionState.details));
+                return;
+            }
+            ssidValue = savedSsid;
+            passwordValue = savedPassword;
+        } else {
+            ssidValue = server.arg("ssid");
+            passwordValue = server.arg("password");
+
+            if (!isLengthValid(ssidValue.c_str(), MAX_WIFI_SSID_LEN) ||
+                !isLengthValid(passwordValue.c_str(), MAX_WIFI_PASSWORD_LEN)) {
+                submissionState.finished = true;
+                submissionState.result = PORTAL_VALIDATION_ERROR;
+                submissionState.details = "Invalid Wi-Fi credentials";
+                server.send(400, "text/html", buildResultHtml(submissionState.details));
+                return;
+            }
+
+            if (!saveWifiCredentialsConfig(ssidValue.c_str(), passwordValue.c_str())) {
+                submissionState.finished = true;
+                submissionState.result = PORTAL_INTERNAL_ERROR;
+                submissionState.details = "Failed to save Wi-Fi config";
+                server.send(500, "text/html", buildResultHtml(submissionState.details));
+                return;
+            }
         }
 
         if (!saveBuildStateConfig(selectedState)) {
@@ -274,27 +310,22 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
                 break;
             }
             case BUS_BY_LINES: {
-                const String stationValue = server.arg("linesStationId");
-                if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN)) {
-                    submissionState.finished = true;
-                    submissionState.result = PORTAL_VALIDATION_ERROR;
-                    submissionState.details = "Station ID is required for BUS_BY_LINES";
-                    server.send(400, "text/html", buildResultHtml(submissionState.details));
-                    return;
-                }
-
+                char stationStorage[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN] = {};
                 char lineStorage[MAX_RUNTIME_TARGETS][MAX_LINE_LEN] = {};
+                const char* stationPtrs[MAX_RUNTIME_TARGETS] = {};
                 const char* linePtrs[MAX_RUNTIME_TARGETS] = {};
-                size_t lineCount = parseLineCsv(server.arg("lineNumbers"), lineStorage, linePtrs);
-                if (lineCount == 0) {
+                const char* errorDetails = nullptr;
+
+                size_t pairCount = parseLinePairs(server, stationStorage, lineStorage, stationPtrs, linePtrs, &errorDetails);
+                if (pairCount == 0) {
                     submissionState.finished = true;
                     submissionState.result = PORTAL_VALIDATION_ERROR;
-                    submissionState.details = "Provide 1-3 valid line numbers";
+                    submissionState.details = errorDetails;
                     server.send(400, "text/html", buildResultHtml(submissionState.details));
                     return;
                 }
 
-                saveBuildInfoOk = saveBuildInfoLinesConfig(stationValue.c_str(), linePtrs, lineCount);
+                saveBuildInfoOk = saveBuildInfoLinesConfig(stationPtrs, linePtrs, pairCount);
                 break;
             }
             case USE_CURRENT_BUILD:

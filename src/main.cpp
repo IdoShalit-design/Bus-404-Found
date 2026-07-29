@@ -122,7 +122,12 @@ void setup() {
   // 1. Initialize display (first — show Loading... ASAP)
   // =========================================
   renderer = new HUB75Display();
-  renderer->init();
+  if (!renderer->init()) {
+    Serial.println("[Main] FATAL: Display init failed");
+    while (true) {
+      delay(1000);
+    }
+  }
   Serial.println("[Main] Display initialized successfully");
   renderer->showMessage("Loading...");
 
@@ -227,7 +232,13 @@ void setup() {
       delete renderer;
     }
     renderer = builtRenderer.release();
-    renderer->init();
+    if (!renderer->init()) {
+      // Nothing to report on: the panel is dead once init() fails.
+      Serial.println("[Build] FATAL: Replacement renderer init failed");
+      while (true) {
+        delay(1000);
+      }
+    }
     renderer->showMessage("Build Ready");
   }
 

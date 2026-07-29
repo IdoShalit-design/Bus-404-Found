@@ -17,7 +17,10 @@ bool build(BuildState state, std::unique_ptr<IBusFetcher>& fetcher, std::unique_
 		case BUS_BY_LINES:
 			Serial.println("Selected state: BUS_BY_LINES");
 			fetcher = std::unique_ptr<IBusFetcher>(new CurlBuseFetcherByLine());
-			renderer = std::unique_ptr<IRenderer>(new HUB75Display());
+			// Do not create a renderer here: setup() already initialized the
+			// HUB75 display. Replacing it would release the I2S/DMA bus and
+			// re-allocate the framebuffer after WiFi has claimed internal RAM,
+			// which fails and leaves the panel permanently black.
 			return true;
 		case NY_METRO_BY_STATION:
 			Serial.println("Selected state: NY_METRO_BY_STATION");

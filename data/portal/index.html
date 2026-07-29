@@ -4,46 +4,474 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Bus-404 Runtime Build</title>
-  <link rel="stylesheet" href="/portal.css">
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f4f6fb;
+      margin: 0;
+      color: #1f2937;
+    }
+
+    .wrap {
+      max-width: 760px;
+      margin: 24px auto;
+      padding: 18px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 24px;
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      margin-top: 6px;
+      box-sizing: border-box;
+      font-size: 15px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #0f766e;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+
+    button {
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .error {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .steps {
+      display: flex;
+      list-style: none;
+      padding: 0;
+      margin: 0 0 20px 0;
+    }
+
+    .step {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      color: #9ca3af;
+      font-size: 13px;
+      font-weight: 600;
+      position: relative;
+    }
+
+    .step .dot {
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      margin-right: 8px;
+    }
+
+    .step .label {
+      white-space: nowrap;
+    }
+
+    .step:not(:last-child)::after {
+      content: "";
+      flex: 1;
+      height: 2px;
+      background: #e5e7eb;
+      margin: 0 8px;
+    }
+
+    .step.active,
+    .step.done {
+      color: #0f766e;
+    }
+
+    .step.active .dot,
+    .step.done .dot {
+      background: #0f766e;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .actions {
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    button.primary,
+    button.secondary {
+      border: 0;
+      padding: 11px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    button.primary {
+      background: #0f766e;
+      color: #ffffff;
+    }
+
+    button.primary:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .saved-wifi {
+      background: #f0fdfa;
+      border: 1px solid #99f6e4;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .saved-toggle {
+      display: flex;
+      align-items: center;
+      margin: 0;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .saved-toggle input {
+      width: auto;
+      margin: 0 10px 0 0;
+    }
+
+    .mode-grid {
+      margin-top: 12px;
+    }
+
+    .mode-card {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: #ffffff;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
+    .mode-card.selected {
+      border-color: #0f766e;
+      background: #f0fdfa;
+    }
+
+    .mode-title {
+      display: block;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .mode-desc {
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Runtime Build Setup</h1>
-      <form method="POST" action="/submit">
-        <label for="ssid">Wi-Fi SSID</label>
-        <input id="ssid" name="ssid" maxlength="32" required>
 
-        <label for="password">Wi-Fi Password</label>
-        <input id="password" type="password" name="password" maxlength="64" required>
+      <ol class="steps" id="steps">
+        <li class="step active" data-step="1"><span class="dot">1</span><span class="label">Wi-Fi</span></li>
+        <li class="step" data-step="2"><span class="dot">2</span><span class="label">Mode</span></li>
+        <li class="step" data-step="3"><span class="dot">3</span><span class="label">Details</span></li>
+      </ol>
 
-        <label for="state">Activation Mode</label>
-        <select id="state" name="state">
-          <option value="BUS_BY_STATION">BUS_BY_STATION</option>
-          <option value="BUS_BY_LINES">BUS_BY_LINES</option>
-          <option value="NY_METRO_BY_STATION">NY_METRO_BY_STATION</option>
-          <option value="USE_CURRENT_BUILD">USE_CURRENT_BUILD</option>
-        </select>
+      <p class="error" id="formError" hidden></p>
 
-        <div id="stationOnly">
-          <label for="stationId">Station ID</label>
-          <input id="stationId" name="stationId" maxlength="23">
-        </div>
+      <form method="POST" action="/submit" id="setupForm" novalidate>
+        <input type="hidden" name="state" id="stateInput" value="">
+        <input type="hidden" name="useSavedWifi" id="useSavedWifiInput" value="0">
 
-        <div id="linesGroup" class="hidden">
-          <label for="linesStationId">Station ID</label>
-          <input id="linesStationId" name="linesStationId" maxlength="23">
+        <!-- Step 1: Wi-Fi -->
+        <section class="panel active" data-panel="1">
+          <div class="saved-wifi hidden" id="savedWifiPanel">
+            <label class="saved-toggle">
+              <input type="checkbox" id="useSavedWifiToggle">
+              <span>Use saved network <strong id="savedWifiSsid"></strong></span>
+            </label>
+          </div>
 
-          <label for="lineNumbers">Line Numbers</label>
-          <input id="lineNumbers" name="lineNumbers" placeholder="7,19,72">
-          <div class="hint">Comma-separated, up to 3 lines.</div>
-        </div>
+          <div id="manualWifiFields">
+            <label for="ssid">Wi-Fi SSID</label>
+            <input id="ssid" name="ssid" maxlength="32">
 
-        <button type="submit">Save and Apply</button>
+            <label for="password">Wi-Fi Password</label>
+            <input id="password" type="password" name="password" maxlength="64">
+          </div>
+
+          <div class="actions">
+            <span></span>
+            <button type="button" class="primary" data-next>Next</button>
+          </div>
+        </section>
+
+        <!-- Step 2: Mode -->
+        <section class="panel" data-panel="2">
+          <div class="hint">Choose how this device should look up bus data.</div>
+
+          <div class="mode-grid" id="modeGrid">
+            <button type="button" class="mode-card" data-state="BUS_BY_STATION">
+              <span class="mode-title">Bus by Station</span>
+              <span class="mode-desc">Show all lines arriving at one station.</span>
+            </button>
+            <button type="button" class="mode-card" data-state="BUS_BY_LINES">
+              <span class="mode-title">Bus by Line</span>
+              <span class="mode-desc">Track up to 3 specific line + station pairs.</span>
+            </button>
+            <button type="button" class="mode-card" data-state="NY_METRO_BY_STATION">
+              <span class="mode-title">NY Metro by Station</span>
+              <span class="mode-desc">Show NY Metro arrivals at one station.</span>
+            </button>
+            <button type="button" class="mode-card" data-state="USE_CURRENT_BUILD">
+              <span class="mode-title">Keep Current Build</span>
+              <span class="mode-desc">Reconnect Wi-Fi only; reuse the existing setup.</span>
+            </button>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="secondary" data-back>Back</button>
+            <button type="button" class="primary" data-next disabled>Next</button>
+          </div>
+        </section>
+
+        <!-- Step 3: Details -->
+        <section class="panel" data-panel="3">
+          <div id="stationOnly" class="hidden">
+            <label for="stationId">Station ID</label>
+            <input id="stationId" name="stationId" maxlength="23">
+          </div>
+
+          <div id="linesGroup" class="hidden">
+            <div class="hint">Up to 3 independent station/line pairs.</div>
+
+            <label for="line1StationId">Station ID (line 1)</label>
+            <input id="line1StationId" name="line1StationId" maxlength="23">
+            <label for="line1Number">Line Number (line 1)</label>
+            <input id="line1Number" name="line1Number" maxlength="15" placeholder="7">
+
+            <label for="line2StationId">Station ID (line 2)</label>
+            <input id="line2StationId" name="line2StationId" maxlength="23">
+            <label for="line2Number">Line Number (line 2)</label>
+            <input id="line2Number" name="line2Number" maxlength="15" placeholder="19">
+
+            <label for="line3StationId">Station ID (line 3)</label>
+            <input id="line3StationId" name="line3StationId" maxlength="23">
+            <label for="line3Number">Line Number (line 3)</label>
+            <input id="line3Number" name="line3Number" maxlength="15" placeholder="72">
+          </div>
+
+          <div id="noExtraData" class="hidden hint">No extra data needed for this mode.</div>
+
+          <div class="actions">
+            <button type="button" class="secondary" data-back>Back</button>
+            <button type="submit" class="primary">Save and Apply</button>
+          </div>
+        </section>
       </form>
     </div>
   </div>
 
-  <script src="/portal.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var form = document.getElementById("setupForm");
+      var steps = document.querySelectorAll(".step");
+      var panels = document.querySelectorAll(".panel");
+      var errorBox = document.getElementById("formError");
+
+      var ssidInput = document.getElementById("ssid");
+      var passwordInput = document.getElementById("password");
+      var savedWifiPanel = document.getElementById("savedWifiPanel");
+      var savedWifiSsid = document.getElementById("savedWifiSsid");
+      var useSavedWifiToggle = document.getElementById("useSavedWifiToggle");
+      var useSavedWifiInput = document.getElementById("useSavedWifiInput");
+      var manualWifiFields = document.getElementById("manualWifiFields");
+
+      var stateInput = document.getElementById("stateInput");
+      var modeGrid = document.getElementById("modeGrid");
+      var modeCards = modeGrid.querySelectorAll(".mode-card");
+
+      var stationOnly = document.getElementById("stationOnly");
+      var linesGroup = document.getElementById("linesGroup");
+      var noExtraData = document.getElementById("noExtraData");
+
+      var currentStep = 1;
+
+      function showError(message) {
+        errorBox.textContent = message;
+        errorBox.hidden = false;
+      }
+
+      function clearError() {
+        errorBox.hidden = true;
+        errorBox.textContent = "";
+      }
+
+      function goToStep(step) {
+        currentStep = step;
+        clearError();
+
+        panels.forEach(function (panel) {
+          panel.classList.toggle("active", Number(panel.dataset.panel) === step);
+        });
+
+        steps.forEach(function (stepEl) {
+          var n = Number(stepEl.dataset.step);
+          stepEl.classList.toggle("active", n === step);
+          stepEl.classList.toggle("done", n < step);
+        });
+      }
+
+      fetch("/wifi-status")
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          if (data && data.hasSaved) {
+            savedWifiSsid.textContent = data.ssid;
+            savedWifiPanel.classList.remove("hidden");
+          }
+        })
+        .catch(function () {
+          // No saved network available; keep manual entry as the only option.
+        });
+
+      useSavedWifiToggle.addEventListener("change", function () {
+        var useSaved = useSavedWifiToggle.checked;
+        useSavedWifiInput.value = useSaved ? "1" : "0";
+        manualWifiFields.classList.toggle("hidden", useSaved);
+      });
+
+      function validateStep1() {
+        if (useSavedWifiInput.value === "1") {
+          return true;
+        }
+        return ssidInput.value.trim().length > 0 && passwordInput.value.length > 0;
+      }
+
+      var step2NextButton = panels[1].querySelector("[data-next]");
+
+      modeCards.forEach(function (card) {
+        card.addEventListener("click", function () {
+          modeCards.forEach(function (c) {
+            c.classList.remove("selected");
+          });
+          card.classList.add("selected");
+          stateInput.value = card.dataset.state;
+          step2NextButton.disabled = false;
+        });
+      });
+
+      function renderStep3() {
+        var mode = stateInput.value;
+        stationOnly.classList.add("hidden");
+        linesGroup.classList.add("hidden");
+        noExtraData.classList.add("hidden");
+
+        if (mode === "BUS_BY_LINES") {
+          linesGroup.classList.remove("hidden");
+        } else if (mode === "USE_CURRENT_BUILD") {
+          noExtraData.classList.remove("hidden");
+        } else {
+          stationOnly.classList.remove("hidden");
+        }
+      }
+
+      document.querySelectorAll("[data-next]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          if (currentStep === 1) {
+            if (!validateStep1()) {
+              showError("Enter a Wi-Fi SSID and password, or choose a saved network.");
+              return;
+            }
+            goToStep(2);
+            return;
+          }
+
+          if (currentStep === 2) {
+            if (!stateInput.value) {
+              showError("Choose a mode to continue.");
+              return;
+            }
+            renderStep3();
+            goToStep(3);
+          }
+        });
+      });
+
+      document.querySelectorAll("[data-back]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          goToStep(currentStep - 1);
+        });
+      });
+
+      form.addEventListener("submit", function () {
+        if (useSavedWifiInput.value === "1") {
+          ssidInput.disabled = true;
+          passwordInput.disabled = true;
+        }
+      });
+
+      goToStep(1);
+    });
+  </script>
 </body>
 </html>

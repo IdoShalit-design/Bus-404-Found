@@ -155,35 +155,37 @@ bool parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst buildIn
 }
 
 bool parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj, char* errorBuffer, size_t errorBufferLen) {
-    const char* stationId = buildInfoObj["stationId"];
-    if (stationId == nullptr || strlen(stationId) == 0) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing stationId");
+    JsonArrayConst targets = buildInfoObj["targets"].as<JsonArrayConst>();
+    if (targets.isNull()) {
+        setError(errorBuffer, errorBufferLen, "build_info.json missing targets array");
         return false;
     }
 
-    JsonArrayConst lines = buildInfoObj["lineNumbers"].as<JsonArrayConst>();
-    if (lines.isNull()) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing lineNumbers array");
+    if (targets.size() == 0) {
+        setError(errorBuffer, errorBufferLen, "targets array cannot be empty");
         return false;
     }
 
-    if (lines.size() == 0) {
-        setError(errorBuffer, errorBufferLen, "lineNumbers array cannot be empty");
-        return false;
-    }
-
-    if (lines.size() > MAX_RUNTIME_TARGETS) {
-        setError(errorBuffer, errorBufferLen, "Too many lines in build_info.json");
+    if (targets.size() > MAX_RUNTIME_TARGETS) {
+        setError(errorBuffer, errorBufferLen, "Too many targets in build_info.json");
         return false;
     }
 
     int idx = 0;
-    for (JsonVariantConst lineValue : lines) {
-        const char* lineText = lineValue.as<const char*>();
-        if (lineText == nullptr || strlen(lineText) == 0) {
-            setError(errorBuffer, errorBufferLen, "build_info.json contains empty line");
+    for (JsonVariantConst targetValue : targets) {
+        JsonObjectConst target = targetValue.as<JsonObjectConst>();
+        const char* stationId = target["stationId"];
+        const char* lineText = target["line"];
+
+        if (stationId == nullptr || strlen(stationId) == 0) {
+            setError(errorBuffer, errorBufferLen, "build_info.json target missing stationId");
             return false;
         }
+        if (lineText == nullptr || strlen(lineText) == 0) {
+            setError(errorBuffer, errorBufferLen, "build_info.json target missing line");
+            return false;
+        }
+
         copyBounded(outConfig.bus.targets[idx].stationId, sizeof(outConfig.bus.targets[idx].stationId), stationId);
         copyBounded(outConfig.bus.targets[idx].line, sizeof(outConfig.bus.targets[idx].line), lineText);
         outConfig.bus.targets[idx].destination[0] = '\0';
@@ -306,9 +308,6 @@ const char* configErrorToDisplayMessage(const char* configError) {
     }
     if (strstr(configError, "targets") != nullptr) {
         return "Targets Error";
-    }
-    if (strstr(configError, "lineNumbers") != nullptr) {
-        return "Lines Error";
     }
 
     return "Config Error";
