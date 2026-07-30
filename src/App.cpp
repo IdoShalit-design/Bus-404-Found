@@ -85,8 +85,13 @@ void App::setup() {
 
     initDisplay();
 
+    // [this] carries the object showMessage() needs, and re-reads _renderer per
+    // call, so this survives the renderer swap in buildPipeline().
+    const PortalNotifyFn showOnPanel =
+        [this](const char* msg) { showMessage(msg); };
+
     const RuntimeBuildPortalResult portalResult =
-        runRuntimeBuildPortal([this](const char* message) { showMessage(message); });
+        runRuntimeBuildPortal(showOnPanel);
     Serial.printf("[Main] Runtime build portal result: %d\n", static_cast<int>(portalResult));
 
     // A failed portal does not stop boot: the previously saved config may still
