@@ -2,6 +2,7 @@
 #define RUNTIME_BUILD_PORTAL_H
 
 #include <Arduino.h>
+#include <functional>
 
 #include "RuntimeBuild/Builder.h"
 
@@ -15,6 +16,15 @@ enum RuntimeBuildPortalResult {
     PORTAL_TIMEOUT_NO_SUBMIT,
     PORTAL_INTERNAL_ERROR,
 };
+
+/**
+ * @brief Shows a short line of text to whoever is standing at the device.
+ *
+ * The portal has no display of its own; the caller supplies this so the AP
+ * passphrase can be read off the panel. Kept as a callback rather than an
+ * IRenderer so this header stays independent of the display layer.
+ */
+using PortalNotifyFn = std::function<void(const char* message)>;
 
 /**
  * @brief Starts AP + captive portal runtime-build provisioning flow.
@@ -32,7 +42,11 @@ enum RuntimeBuildPortalResult {
  *         timeouts mean the saved config still stands and boot should continue,
  *         while the failure results should be surfaced to the user, since the
  *         device will otherwise look stalled with no explanation.
+ *
+ * @param notify Called with the AP credentials once the access point is up, so
+ *               the user can join it. May be empty, in which case the
+ *               credentials are only written to the serial log.
  */
-RuntimeBuildPortalResult runRuntimeBuildPortal();
+RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify);
 
 #endif // RUNTIME_BUILD_PORTAL_H

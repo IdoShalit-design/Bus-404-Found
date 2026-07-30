@@ -1,6 +1,5 @@
 #include "RuntimeBuild/RuntimeBuildPortal.h"
 
-#include <ArduinoJson.h>
 #include <DNSServer.h>
 #include <LittleFS.h>
 #include <WebServer.h>
@@ -13,6 +12,9 @@
 namespace {
 
 constexpr const char* kApSsid = "Bus-404-Found-Setup";
+
+// Prefix for the generated WPA2 passphrase; the MAC suffix is appended to it.
+constexpr const char* kApPasswordPrefix = "bus";
 
 // Hard cap on a whole portal session. The no-client timeout is reset whenever a
 // station is associated, so on its own it cannot bound anything: a phone that
@@ -36,6 +38,19 @@ struct SubmissionState {
     RuntimeBuildPortalResult result;
     const char* details;
 };
+
+// Builds the AP passphrase from the last three bytes of the interface MAC.
+// Deterministic, so the user sees the same passphrase on every boot; unique per
+// device, so one leaked passphrase does not open every unit; and derived rather
+// than stored, so there is no secret to commit. Must be called after WiFi.mode().
+String makeApPassword() {
+    uint8_t mac[6] = {};
+    WiFi.softAPmacAddress(mac);
+
+    char suffix[7];
+    snprintf(suffix, sizeof(suffix), "%02X%02X%02X", mac[3], mac[4], mac[5]);
+    return String(kApPasswordPrefix) + suffix;  // 9 chars, above the WPA2 minimum of 8
+}
 
 bool tryStaConnect(const char* ssid, const char* password, unsigned long timeoutMs) {
     WiFi.begin(ssid, password);
@@ -195,7 +210,7 @@ void abortSubmission(SubmissionState& submissionState, WebServer& server, const 
 
 } // namespace
 
-RuntimeBuildPortalResult runRuntimeBuildPortal() {
+RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
     DNSServer dnsServer;
     WebServer server(80);
     SubmissionState submissionState = {false, PORTAL_INTERNAL_ERROR, "Internal error"};
@@ -214,7 +229,8 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
     WiFi.mode(WIFI_AP_STA);
     delay(100);  // Let the mode transition settle before starting the AP.
 
-    if (!WiFi.softAP(kApSsid)) {
+    const String apPassword = makeApPassword();
+    if (!WiFi.softAP(kApSsid, apPassword.c_str())) {
         Serial.println("[RuntimeBuildPortal] Failed to start AP");
         WiFi.setAutoReconnect(true);
         return PORTAL_INTERNAL_ERROR;
@@ -276,17 +292,12 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         char savedSsid[MAX_WIFI_SSID_LEN] = {};
         char savedPassword[MAX_WIFI_PASSWORD_LEN] = {};
 
-        if (!loadWifiCredentialsConfig(savedSsid, sizeof(savedSsid), savedPassword, sizeof(savedPassword))) {
-            server.send(200, "application/json", "{\"hasSaved\":false}");
-            return;
-        }
-
-        StaticJsonDocument<192> doc;
-        doc["hasSaved"] = true;
-        doc["ssid"] = savedSsid;
-        String body;
-        serializeJson(doc, body);
-        server.send(200, "application/json", body);
+        // Whether credentials exist is all the form needs in order to offer the
+        // "use saved network" toggle. The SSID itself is withheld: this endpoint
+        // is unauthenticated, and a home network name is a strong location hint.
+        const bool hasSaved =
+            loadWifiCredentialsConfig(savedSsid, sizeof(savedSsid), savedPassword, sizeof(savedPassword));
+        server.send(200, "application/json", hasSaved ? "{\"hasSaved\":true}" : "{\"hasSaved\":false}");
     });
 
     server.on("/submit", HTTP_POST, [&server, &submissionState]() {
@@ -407,7 +418,14 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
     });
 
     server.begin();
-    Serial.printf("[RuntimeBuildPortal] AP started. SSID: %s IP: %s\n", kApSsid, WiFi.softAPIP().toString().c_str());
+    Serial.printf("[RuntimeBuildPortal] AP started. SSID: %s Password: %s IP: %s\n", kApSsid,
+                  apPassword.c_str(), apIp.toString().c_str());
+
+    // The AP is WPA2-protected, so the passphrase has to reach the user somehow;
+    // the panel is the only channel they are guaranteed to have.
+    if (notify) {
+        notify((String("Setup PW ") + apPassword).c_str());
+    }
 
     const unsigned long sessionStart = millis();
     unsigned long idleStart = sessionStart;

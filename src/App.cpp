@@ -92,7 +92,8 @@ void App::setup() {
 
     initDisplay();
 
-    const RuntimeBuildPortalResult portalResult = runRuntimeBuildPortal();
+    const RuntimeBuildPortalResult portalResult =
+        runRuntimeBuildPortal([this](const char* message) { showMessage(message); });
     Serial.printf("[Main] Runtime build portal result: %d\n", static_cast<int>(portalResult));
 
     // A failed portal does not stop boot: the previously saved config may still

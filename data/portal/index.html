@@ -246,7 +246,7 @@
           <div class="saved-wifi hidden" id="savedWifiPanel">
             <label class="saved-toggle">
               <input type="checkbox" id="useSavedWifiToggle">
-              <span>Use saved network <strong id="savedWifiSsid"></strong></span>
+              <span>Use the network already saved on this device</span>
             </label>
           </div>
 
@@ -340,7 +340,6 @@
       var ssidInput = document.getElementById("ssid");
       var passwordInput = document.getElementById("password");
       var savedWifiPanel = document.getElementById("savedWifiPanel");
-      var savedWifiSsid = document.getElementById("savedWifiSsid");
       var useSavedWifiToggle = document.getElementById("useSavedWifiToggle");
       var useSavedWifiInput = document.getElementById("useSavedWifiInput");
       var manualWifiFields = document.getElementById("manualWifiFields");
@@ -385,8 +384,9 @@
           return res.json();
         })
         .then(function (data) {
+          // /wifi-status reports only whether credentials exist; the SSID is
+          // deliberately not sent, so there is nothing to render here.
           if (data && data.hasSaved) {
-            savedWifiSsid.textContent = data.ssid;
             savedWifiPanel.classList.remove("hidden");
           }
         })
