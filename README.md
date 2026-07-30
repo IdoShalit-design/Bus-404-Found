@@ -214,7 +214,7 @@ Bus-404-Found/
 │   │   ├── HUB75Display.h     # HUB75 LED matrix driver
 │   │   └── IRenderer.h        # Abstract display interface
 │   ├── Fetchers/
-│   │   ├── CurlBuseFetcherByLine.h # CurlBus API line fetcher client
+│   │   ├── CurlBusFetcherByLine.h # CurlBus API line fetcher client
 │   │   └── IBusFetcher.h           # Abstract data-fetcher interface
 │   ├── NetworkManager.h       # Wi-Fi connection manager
 │   └── TransitClient.h        # (Planned) Generic transit client
@@ -224,7 +224,7 @@ Bus-404-Found/
 │   ├── Display/
 │   │   └── HUB75Display.cpp   # HUB75 rendering implementation
 │   ├── Fetchers/
-│   │   └── CurlBuseFetcherByLine.cpp # CurlBus HTTPS fetch + JSON parsing
+│   │   └── CurlBusFetcherByLine.cpp # CurlBus HTTPS fetch + JSON parsing
 │   └── NetworkManager.cpp     # Wi-Fi connection implementation
 ├── get_ip.py                  # Build script: injects PC LAN IP as build flag
 ├── udp_listener.py            # Helper: listens for heap debug UDP packets

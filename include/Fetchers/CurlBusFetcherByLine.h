@@ -1,5 +1,5 @@
-#ifndef CURL_BUSE_FETCHER_BY_LINE_H
-#define CURL_BUSE_FETCHER_BY_LINE_H
+#ifndef CURL_BUS_FETCHER_BY_LINE_H
+#define CURL_BUS_FETCHER_BY_LINE_H
 
 #include "IBusFetcher.h"
 
@@ -13,7 +13,7 @@
 
 #define CURLBUS_URL_BUFFER_SIZE 64
 
-class CurlBuseFetcherByLine : public IBusFetcher {
+class CurlBusFetcherByLine : public IBusFetcher {
 private:
 
     // Pre-allocated JSON document buffer.
@@ -28,12 +28,12 @@ private:
 public:
 
     // Constructor - allocates JSON buffer once.
-    CurlBuseFetcherByLine();
+    CurlBusFetcherByLine();
 
     /**
      * @brief Destructor - frees JSON buffer.
      */
-    ~CurlBuseFetcherByLine();
+    ~CurlBusFetcherByLine();
 
     bool update(BusTarget& bus) override;
 };
