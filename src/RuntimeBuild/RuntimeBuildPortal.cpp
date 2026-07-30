@@ -13,6 +13,12 @@
 namespace {
 
 constexpr const char* kApSsid = "Bus-404-Found-Setup";
+
+// Hard cap on a whole portal session. The no-client timeout is reset whenever a
+// station is associated, so on its own it cannot bound anything: a phone that
+// auto-joins the open AP and then idles would block boot indefinitely, since the
+// portal runs before the rest of App::setup().
+constexpr unsigned long kMaxSessionMs = 300000UL;
 constexpr const char* kLineStationFields[MAX_RUNTIME_TARGETS] = {"line1StationId", "line2StationId", "line3StationId"};
 constexpr const char* kLineNumberFields[MAX_RUNTIME_TARGETS] = {"line1Number", "line2Number", "line3Number"};
 
@@ -354,20 +360,26 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
     server.begin();
     Serial.printf("[RuntimeBuildPortal] AP started. SSID: %s IP: %s\n", kApSsid, WiFi.softAPIP().toString().c_str());
 
-    unsigned long start = millis();
+    const unsigned long sessionStart = millis();
+    unsigned long idleStart = sessionStart;
     while (!submissionState.finished) {
         dnsServer.processNextRequest();
         server.handleClient();
 
-        if (WiFi.softAPgetStationNum() == 0 && (millis() - start) >= RUNTIME_BUILD_PORTAL_NO_CLIENT_TIMEOUT_MS) {
+        if (millis() - sessionStart >= kMaxSessionMs) {
             submissionState.finished = true;
-            submissionState.result = PORTAL_TIMEOUT_NO_CLIENT;
-            submissionState.details = "Timed out waiting for AP client";
+            submissionState.result = PORTAL_TIMEOUT_NO_SUBMIT;
+            submissionState.details = "Timed out waiting for a submission";
             break;
         }
 
         if (WiFi.softAPgetStationNum() > 0) {
-            start = millis();
+            idleStart = millis();
+        } else if (millis() - idleStart >= RUNTIME_BUILD_PORTAL_NO_CLIENT_TIMEOUT_MS) {
+            submissionState.finished = true;
+            submissionState.result = PORTAL_TIMEOUT_NO_CLIENT;
+            submissionState.details = "Timed out waiting for AP client";
+            break;
         }
 
         delay(10);
