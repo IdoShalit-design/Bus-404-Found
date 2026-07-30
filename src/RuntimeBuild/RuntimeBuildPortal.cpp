@@ -139,16 +139,21 @@ bool serveStaticFile(WebServer& server, const char* path, const char* contentTyp
     return true;
 }
 
-// Reads up to MAX_RUNTIME_TARGETS (stationId, line) pairs from the form.
-// A pair is only included if both fields are non-empty; a pair with just one
-// field filled in is treated as a validation error. Returns 0 on any error.
-size_t parseLinePairs(WebServer& server,
-                       char stationStorage[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN],
-                       char lineStorage[MAX_RUNTIME_TARGETS][MAX_LINE_LEN],
-                       const char* stationPtrs[MAX_RUNTIME_TARGETS],
-                       const char* linePtrs[MAX_RUNTIME_TARGETS],
-                       const char** errorDetails) {
-    size_t count = 0;
+// The (stationId, line) pairs a submission asked for, owning its own storage.
+// `error` follows the ConfigResult convention in ConfigLoader.h: nullptr on
+// success, otherwise a string literal, so there is nothing to free.
+struct LineTargets {
+    char stations[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN];
+    char lines[MAX_RUNTIME_TARGETS][MAX_LINE_LEN];
+    size_t count;
+    const char* error;
+};
+
+// Reads up to MAX_RUNTIME_TARGETS (stationId, line) pairs from the form. A pair
+// is included only if both fields are filled in; one field on its own is a
+// validation error rather than a partially usable target.
+LineTargets parseLinePairs(WebServer& server) {
+    LineTargets targets = {};
 
     for (size_t i = 0; i < MAX_RUNTIME_TARGETS; i++) {
         const String stationValue = readTrimmedArg(server, kLineStationFields[i]);
@@ -162,29 +167,26 @@ size_t parseLinePairs(WebServer& server,
         }
 
         if (!hasStation || !hasLine) {
-            *errorDetails = "Each line entry needs both a station ID and a line number";
-            return 0;
+            targets.error = "Each line entry needs both a station ID and a line number";
+            return targets;
         }
 
         if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN) ||
             !isLengthValid(lineValue.c_str(), MAX_LINE_LEN)) {
-            *errorDetails = "Invalid station ID or line number";
-            return 0;
+            targets.error = "Invalid station ID or line number";
+            return targets;
         }
 
-        stationValue.toCharArray(stationStorage[count], MAX_STATION_ID_LEN);
-        lineValue.toCharArray(lineStorage[count], MAX_LINE_LEN);
-        stationPtrs[count] = stationStorage[count];
-        linePtrs[count] = lineStorage[count];
-        count++;
+        stationValue.toCharArray(targets.stations[targets.count], MAX_STATION_ID_LEN);
+        lineValue.toCharArray(targets.lines[targets.count], MAX_LINE_LEN);
+        targets.count++;
     }
 
-    if (count == 0) {
-        *errorDetails = "Provide 1-3 station/line pairs";
-        return 0;
+    if (targets.count == 0) {
+        targets.error = "Provide 1-3 station/line pairs";
     }
 
-    return count;
+    return targets;
 }
 
 String buildResultHtml(const char* message) {
@@ -310,19 +312,21 @@ StepResult persistBuildInfo(WebServer& server, BuildState state) {
                                                                     : stepFailed("Failed to save build info");
         }
         case BuildState::BUS_BY_LINES: {
-            char stationStorage[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN] = {};
-            char lineStorage[MAX_RUNTIME_TARGETS][MAX_LINE_LEN] = {};
-            const char* stationPtrs[MAX_RUNTIME_TARGETS] = {};
-            const char* linePtrs[MAX_RUNTIME_TARGETS] = {};
-            const char* errorDetails = nullptr;
-
-            const size_t pairCount =
-                parseLinePairs(server, stationStorage, lineStorage, stationPtrs, linePtrs, &errorDetails);
-            if (pairCount == 0) {
-                return stepRejected(errorDetails);
+            const LineTargets targets = parseLinePairs(server);
+            if (targets.error != nullptr) {
+                return stepRejected(targets.error);
             }
 
-            return saveBuildInfoLinesConfig(stationPtrs, linePtrs, pairCount)
+            // saveBuildInfoLinesConfig takes parallel pointer arrays; build them
+            // here so that storage shape stays out of the parser's signature.
+            const char* stationPtrs[MAX_RUNTIME_TARGETS] = {};
+            const char* linePtrs[MAX_RUNTIME_TARGETS] = {};
+            for (size_t i = 0; i < targets.count; i++) {
+                stationPtrs[i] = targets.stations[i];
+                linePtrs[i] = targets.lines[i];
+            }
+
+            return saveBuildInfoLinesConfig(stationPtrs, linePtrs, targets.count)
                        ? stepOk()
                        : stepFailed("Failed to save build info");
         }
