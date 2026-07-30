@@ -19,8 +19,17 @@ constexpr const char* kApSsid = "Bus-404-Found-Setup";
 // auto-joins the open AP and then idles would block boot indefinitely, since the
 // portal runs before the rest of App::setup().
 constexpr unsigned long kMaxSessionMs = 300000UL;
-constexpr const char* kLineStationFields[MAX_RUNTIME_TARGETS] = {"line1StationId", "line2StationId", "line3StationId"};
-constexpr const char* kLineNumberFields[MAX_RUNTIME_TARGETS] = {"line1Number", "line2Number", "line3Number"};
+// Must stay in step with the per-line inputs in data/portal/index.html, which
+// cannot be checked at compile time. Sizing these from their initialisers rather
+// than from MAX_RUNTIME_TARGETS means raising that constant is a build error here
+// instead of a nullptr handed to WebServer::arg() at runtime.
+constexpr const char* kLineStationFields[] = {"line1StationId", "line2StationId", "line3StationId"};
+constexpr const char* kLineNumberFields[] = {"line1Number", "line2Number", "line3Number"};
+
+static_assert(sizeof(kLineStationFields) / sizeof(kLineStationFields[0]) == MAX_RUNTIME_TARGETS,
+              "Add a station field name per runtime target, here and in data/portal/index.html");
+static_assert(sizeof(kLineNumberFields) / sizeof(kLineNumberFields[0]) == MAX_RUNTIME_TARGETS,
+              "Add a line field name per runtime target, here and in data/portal/index.html");
 
 struct SubmissionState {
     bool finished;
