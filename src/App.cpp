@@ -96,7 +96,7 @@ void App::setup() {
 void App::loop() {
     unsigned long now = millis();
 
-    if (_lastFetchTime == 0 || (now - _lastFetchTime >= FETCH_INTERVAL)) {
+    if (_lastFetchTime == 0 || (now - _lastFetchTime >= FETCH_INTERVAL_MS)) {
         _lastFetchTime = now ? now : 1;  // Avoid 0 to prevent re-trigger
         fetchAndRender();
     }

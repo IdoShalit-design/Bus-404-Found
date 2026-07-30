@@ -2,17 +2,19 @@
 #define CONFIG_H
 #include "Structs.h"
 
-// --- Debug Flags ---
+#include <stdint.h>
+
+// --- Debug Flags (kept as macros: used in #if conditionals) ---
 #define SCREEN_DEBUG 0     // Set to 1 to run display color tests (blocks forever)
 #define MEMORY_DEBUG         0  // Set to 1 to log heap memory usage to LittleFS (heap_log.txt)
 
-#define HEAP_UDP_PORT 12345   // UDP port for heap reports on PC
+constexpr uint16_t HEAP_UDP_PORT = 12345;  // UDP port for heap reports on PC
 
 // --- TimeZone ---
 #define TIME_ZONE "IST-2IDT,M3.4.4/26,M10.5.0"
 
-#define FETCH_INTERVAL 30000  // 30 seconds
-#define MAX_RUNTIME_TARGETS 3
+constexpr unsigned long FETCH_INTERVAL_MS = 30000UL;
+constexpr size_t MAX_RUNTIME_TARGETS = 3;
 
 // ------------- API'S address ---------------- //
 

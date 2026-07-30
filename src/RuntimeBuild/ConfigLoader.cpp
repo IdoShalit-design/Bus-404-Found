@@ -142,7 +142,7 @@ ConfigResult parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst
         return failure("build_info.json missing stationId");
     }
 
-    for (int i = 0; i < MAX_RUNTIME_TARGETS; i++) {
+    for (size_t i = 0; i < MAX_RUNTIME_TARGETS; i++) {
         copyBounded(outConfig.bus.targets[i].stationId, sizeof(outConfig.bus.targets[i].stationId), stationId);
         outConfig.bus.targets[i].line[0] = '\0';
         resetArrivalState(outConfig.bus.targets[i]);
