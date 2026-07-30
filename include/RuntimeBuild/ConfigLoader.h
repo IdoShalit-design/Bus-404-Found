@@ -66,6 +66,19 @@ ConfigResult loadRuntimeConfig(RuntimeConfig& outConfig);
 ConfigResult resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState);
 
 /**
+ * @brief Checks that /build_info.json holds a usable payload for a concrete state.
+ *
+ * Runs the same parser boot uses, so a caller can tell in advance whether the
+ * next boot would accept the persisted build info. Intended for the provisioning
+ * portal, which must not persist a USE_CURRENT_BUILD selection when there is no
+ * previous build to fall back on.
+ *
+ * @param concreteState Concrete (non-USE_CURRENT_BUILD) state to validate against.
+ * @return ok when the persisted build info parses for that state; otherwise error text.
+ */
+ConfigResult validateBuildInfoConfig(BuildState concreteState);
+
+/**
  * @brief Maps internal config error text to short display-friendly user messages.
  *
  * @param configError Raw parser/loader error string.

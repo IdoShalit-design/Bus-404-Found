@@ -60,6 +60,25 @@ bool parseBuildStateFromForm(const String& modeValue, BuildState& outState) {
     return false;
 }
 
+// True when a USE_CURRENT_BUILD selection would actually resolve on the next
+// boot: a concrete state must be persisted, and its build_info payload must
+// parse. validateBuildInfoConfig rejects USE_CURRENT_BUILD itself, so a corrupt
+// last-concrete file is caught here too.
+bool hasKeepableBuild() {
+    BuildState previousState = BuildState::BUS_BY_STATION;
+    if (!loadLastConcreteBuildStateConfig(previousState)) {
+        return false;
+    }
+
+    const ConfigResult buildInfo = validateBuildInfoConfig(previousState);
+    if (!buildInfo.ok) {
+        Serial.printf("[RuntimeBuildPortal] Cannot keep current build: %s\n", buildInfo.error);
+        return false;
+    }
+
+    return true;
+}
+
 bool isLengthValid(const char* value, size_t maxLen) {
     return value != nullptr && value[0] != '\0' && strlen(value) < maxLen;
 }
@@ -257,6 +276,15 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
 
         if (!parseBuildStateFromForm(modeValue, selectedState)) {
             rejectSubmission(server, "Invalid activation mode");
+            return;
+        }
+
+        // "Keep current build" persists no build info of its own; it relies on the
+        // last concrete state and the build_info payload already on flash. Reject
+        // it before saving anything if that fallback is missing or unparseable,
+        // otherwise the next boot halts in App::loadConfig() with no way back.
+        if (selectedState == BuildState::USE_CURRENT_BUILD && !hasKeepableBuild()) {
+            rejectSubmission(server, "No previous build to keep - choose a specific mode");
             return;
         }
 

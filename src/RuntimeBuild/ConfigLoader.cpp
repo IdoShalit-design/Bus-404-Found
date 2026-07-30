@@ -253,6 +253,17 @@ ConfigResult loadRuntimeConfig(RuntimeConfig& outConfig) {
     return parseBuildInfoConfig(outConfig, outConfig.concreteBuildState);
 }
 
+ConfigResult validateBuildInfoConfig(BuildState concreteState) {
+    if (!LittleFS.begin(false)) {
+        return failure("LittleFS mount failed");
+    }
+
+    // Parse into a throwaway config: only the verdict matters here, and reusing
+    // the real parser keeps this check honest as the payload format evolves.
+    RuntimeConfig scratch;
+    return parseBuildInfoConfig(scratch, concreteState);
+}
+
 ConfigResult resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState) {
     if (config.buildState != BuildState::USE_CURRENT_BUILD) {
         outState = config.buildState;
