@@ -39,18 +39,18 @@ const char* buildStateToString(BuildState state) {
 // two timeouts are normal: nobody provisioned, so the saved config still stands.
 const char* portalResultToDisplayMessage(RuntimeBuildPortalResult result) {
     switch (result) {
-        case PORTAL_SAVE_AND_CONNECT_OK:
-        case PORTAL_TIMEOUT_NO_CLIENT:
-        case PORTAL_TIMEOUT_NO_SUBMIT:
+        case RuntimeBuildPortalResult::SaveAndConnectOk:
+        case RuntimeBuildPortalResult::TimeoutNoClient:
+        case RuntimeBuildPortalResult::TimeoutNoSubmit:
             return nullptr;
-        case PORTAL_SAVE_OK_CONNECT_FAILED:
+        case RuntimeBuildPortalResult::SaveOkConnectFailed:
             // Explains the silence while connectWifi() works through its retries.
             return "WiFi Connect Failed";
-        case PORTAL_INTERNAL_ERROR:
+        case RuntimeBuildPortalResult::InternalError:
             return "Setup Portal Failed";
-        default:
-            return "Setup Portal Error";
     }
+
+    return "Setup Portal Error";
 }
 
 const char* wifiFailureToDisplayMessage(wl_status_t status) {

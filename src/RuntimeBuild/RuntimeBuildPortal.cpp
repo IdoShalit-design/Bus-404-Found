@@ -210,7 +210,7 @@ void rejectSubmission(WebServer& server, const char* details) {
 // resubmitting, such as a flash write failure.
 void abortSubmission(SubmissionState& submissionState, WebServer& server, const char* details) {
     submissionState.finished = true;
-    submissionState.result = PORTAL_INTERNAL_ERROR;
+    submissionState.result = RuntimeBuildPortalResult::InternalError;
     submissionState.details = details;
     server.send(500, "text/html", buildResultHtml(details));
 }
@@ -354,7 +354,8 @@ void finishWithStaConnect(SubmissionState& submissionState, const String& ssid, 
         tryStaConnect(ssid.c_str(), password.c_str(), kStaConnectTimeoutMs);
 
     submissionState.finished = true;
-    submissionState.result = connected ? PORTAL_SAVE_AND_CONNECT_OK : PORTAL_SAVE_OK_CONNECT_FAILED;
+    submissionState.result =
+        connected ? RuntimeBuildPortalResult::SaveAndConnectOk : RuntimeBuildPortalResult::SaveOkConnectFailed;
     submissionState.details = connected ? "Config saved. Wi-Fi connected." : "Config saved. Wi-Fi connect failed.";
 }
 
@@ -482,7 +483,7 @@ void runPortalLoop(WebServer& server, DNSServer& dnsServer, SubmissionState& sub
 
         if (millis() - sessionStart >= kMaxSessionMs) {
             submissionState.finished = true;
-            submissionState.result = PORTAL_TIMEOUT_NO_SUBMIT;
+            submissionState.result = RuntimeBuildPortalResult::TimeoutNoSubmit;
             submissionState.details = "Timed out waiting for a submission";
             break;
         }
@@ -491,7 +492,7 @@ void runPortalLoop(WebServer& server, DNSServer& dnsServer, SubmissionState& sub
             idleStart = millis();
         } else if (millis() - idleStart >= kNoClientTimeoutMs) {
             submissionState.finished = true;
-            submissionState.result = PORTAL_TIMEOUT_NO_CLIENT;
+            submissionState.result = RuntimeBuildPortalResult::TimeoutNoClient;
             submissionState.details = "Timed out waiting for AP client";
             break;
         }
@@ -505,18 +506,18 @@ void runPortalLoop(WebServer& server, DNSServer& dnsServer, SubmissionState& sub
 RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
     DNSServer dnsServer;
     WebServer server(80);
-    SubmissionState submissionState = {false, PORTAL_INTERNAL_ERROR, "Internal error"};
+    SubmissionState submissionState = {false, RuntimeBuildPortalResult::InternalError, "Internal error"};
 
     if (!LittleFS.begin(false)) {
         Serial.println("[RuntimeBuildPortal] LittleFS mount failed");
-        return PORTAL_INTERNAL_ERROR;
+        return RuntimeBuildPortalResult::InternalError;
     }
 
     String apPassword;
     IPAddress apIp;
     RadioRestore radioRestore;  // Must outlive every return below.
     if (!startProvisioningAp(apPassword, apIp)) {
-        return PORTAL_INTERNAL_ERROR;
+        return RuntimeBuildPortalResult::InternalError;
     }
 
     dnsServer.start(53, "*", apIp);

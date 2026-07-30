@@ -6,12 +6,20 @@
 
 #include "RuntimeBuild/Builder.h"
 
-enum RuntimeBuildPortalResult {
-    PORTAL_SAVE_AND_CONNECT_OK = 0,
-    PORTAL_SAVE_OK_CONNECT_FAILED,
-    PORTAL_TIMEOUT_NO_CLIENT,
-    PORTAL_TIMEOUT_NO_SUBMIT,
-    PORTAL_INTERNAL_ERROR,
+/**
+ * @brief How a provisioning session ended.
+ */
+enum class RuntimeBuildPortalResult {
+    /// Config was written and the device joined the user's network.
+    SaveAndConnectOk,
+    /// Config was written, but the device could not join the network it names.
+    SaveOkConnectFailed,
+    /// Nobody associated with the AP; whatever was on flash still stands.
+    TimeoutNoClient,
+    /// A client associated but never completed the form before the session cap.
+    TimeoutNoSubmit,
+    /// The filesystem or the access point could not be brought up.
+    InternalError,
 };
 
 /**
