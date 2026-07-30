@@ -1,10 +1,9 @@
 #ifndef RUNTIME_BUILD_PORTAL_H
 #define RUNTIME_BUILD_PORTAL_H
 
-#include <Arduino.h>
+// Deliberately self-contained: this header declares one enum and one function,
+// so it should not drag the fetcher/renderer hierarchy in via Builder.h.
 #include <functional>
-
-#include "RuntimeBuild/Builder.h"
 
 /**
  * @brief How a provisioning session ended.
@@ -43,14 +42,13 @@ using PortalNotifyFn = std::function<void(const char* message)>;
  * Rejected submissions are not terminal: the portal answers with HTTP 400 and keeps
  * serving so the user can correct the form and resubmit.
  *
+ * @param notify Called with the AP credentials once the access point is up, so
+ *               the user can join it. May be empty, in which case the
+ *               credentials are only written to the serial log.
  * @return How the session ended. Callers are expected to act on this: the two
  *         timeouts mean the saved config still stands and boot should continue,
  *         while the failure results should be surfaced to the user, since the
  *         device will otherwise look stalled with no explanation.
- *
- * @param notify Called with the AP credentials once the access point is up, so
- *               the user can join it. May be empty, in which case the
- *               credentials are only written to the serial log.
  */
 RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify);
 
