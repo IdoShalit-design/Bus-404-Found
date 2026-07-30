@@ -208,54 +208,173 @@ void abortSubmission(SubmissionState& submissionState, WebServer& server, const 
     server.send(500, "text/html", buildResultHtml(details));
 }
 
-} // namespace
+// How one step of a submission ended. The distinction that matters is whether
+// the user can do anything about it: Rejected is their problem to fix and the
+// portal keeps serving, Failed is the device's and the session ends.
+enum class StepOutcome { Ok, Rejected, Failed };
 
-RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
-    DNSServer dnsServer;
-    WebServer server(80);
-    SubmissionState submissionState = {false, PORTAL_INTERNAL_ERROR, "Internal error"};
+// Mirrors ConfigResult in ConfigLoader.h: `details` always points at a string
+// literal, so there is no ownership to track.
+struct StepResult {
+    StepOutcome outcome;
+    const char* details;  // nullptr when outcome is Ok
+};
 
-    if (!LittleFS.begin(false)) {
-        Serial.println("[RuntimeBuildPortal] LittleFS mount failed");
-        return PORTAL_INTERNAL_ERROR;
+StepResult stepOk() { return {StepOutcome::Ok, nullptr}; }
+StepResult stepRejected(const char* details) { return {StepOutcome::Rejected, details}; }
+StepResult stepFailed(const char* details) { return {StepOutcome::Failed, details}; }
+
+// Turns a step outcome into the HTTP response and session update it implies.
+// Returns true when the handler should carry on to the next step.
+bool applyStep(WebServer& server, SubmissionState& submissionState, const StepResult& step) {
+    switch (step.outcome) {
+        case StepOutcome::Ok:
+            return true;
+        case StepOutcome::Rejected:
+            rejectSubmission(server, step.details);
+            return false;
+        case StepOutcome::Failed:
+            abortSubmission(submissionState, server, step.details);
+            return false;
     }
 
-    // Ensure a clean WiFi state before starting the AP: stop any background
-    // reconnect attempts that would fight over the radio channel.
-    WiFi.setAutoReconnect(false);
-    WiFi.disconnect(false);
-    delay(100);
+    return false;
+}
 
-    WiFi.mode(WIFI_AP_STA);
-    delay(100);  // Let the mode transition settle before starting the AP.
-
-    const String apPassword = makeApPassword();
-    if (!WiFi.softAP(kApSsid, apPassword.c_str())) {
-        Serial.println("[RuntimeBuildPortal] Failed to start AP");
-        WiFi.setAutoReconnect(true);
-        return PORTAL_INTERNAL_ERROR;
+StepResult selectBuildState(WebServer& server, BuildState& outState) {
+    if (!parseBuildStateFromForm(readTrimmedArg(server, "state"), outState)) {
+        return stepRejected("Invalid activation mode");
     }
 
-    // softAPIP() can return 0.0.0.0 for a brief window after softAP() returns.
-    // Wait until the interface has its real address before handing it to the
-    // DNS server, otherwise the wildcard redirect points at 0.0.0.0.
-    IPAddress apIp;
-    {
-        unsigned long ipWait = millis();
-        while ((apIp = WiFi.softAPIP()) == IPAddress(0, 0, 0, 0) && millis() - ipWait < 3000) {
-            delay(50);
+    // "Keep current build" persists no build info of its own; it relies on the
+    // last concrete state and the build_info payload already on flash. Reject it
+    // before saving anything if that fallback is missing or unparseable,
+    // otherwise the next boot halts in App::loadConfig() with no way back.
+    if (outState == BuildState::USE_CURRENT_BUILD && !hasKeepableBuild()) {
+        return stepRejected("No previous build to keep - choose a specific mode");
+    }
+
+    return stepOk();
+}
+
+// Yields the credentials the device should connect with, saving them first when
+// the user supplied new ones. Reusing saved credentials deliberately does not
+// rewrite them.
+StepResult resolveWifiCredentials(WebServer& server, String& outSsid, String& outPassword) {
+    if (server.arg("useSavedWifi") == "1") {
+        char savedSsid[MAX_WIFI_SSID_LEN] = {};
+        char savedPassword[MAX_WIFI_PASSWORD_LEN] = {};
+
+        if (!loadWifiCredentialsConfig(savedSsid, sizeof(savedSsid), savedPassword, sizeof(savedPassword))) {
+            return stepRejected("No saved Wi-Fi credentials found");
         }
+
+        outSsid = savedSsid;
+        outPassword = savedPassword;
+        return stepOk();
     }
 
-    if (apIp == IPAddress(0, 0, 0, 0)) {
-        Serial.println("[RuntimeBuildPortal] AP IP not ready after timeout");
-        WiFi.softAPdisconnect(true);
-        WiFi.setAutoReconnect(true);
-        return PORTAL_INTERNAL_ERROR;
+    outSsid = readTrimmedArg(server, "ssid");
+    outPassword = server.arg("password");  // See readTrimmedArg: passwords are taken verbatim.
+
+    if (!isLengthValid(outSsid.c_str(), MAX_WIFI_SSID_LEN) ||
+        !isLengthValid(outPassword.c_str(), MAX_WIFI_PASSWORD_LEN)) {
+        return stepRejected("Invalid Wi-Fi credentials");
     }
 
-    dnsServer.start(53, "*", apIp);
+    if (!saveWifiCredentialsConfig(outSsid.c_str(), outPassword.c_str())) {
+        return stepFailed("Failed to save Wi-Fi config");
+    }
 
+    return stepOk();
+}
+
+// Writes the mode-specific payload of /build_info.json.
+StepResult persistBuildInfo(WebServer& server, BuildState state) {
+    switch (state) {
+        case BuildState::BUS_BY_STATION:
+        case BuildState::NY_METRO_BY_STATION: {
+            const String stationValue = readTrimmedArg(server, "stationId");
+            if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN)) {
+                return stepRejected("Station ID is required");
+            }
+
+            return saveBuildInfoStationConfig(stationValue.c_str()) ? stepOk()
+                                                                    : stepFailed("Failed to save build info");
+        }
+        case BuildState::BUS_BY_LINES: {
+            char stationStorage[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN] = {};
+            char lineStorage[MAX_RUNTIME_TARGETS][MAX_LINE_LEN] = {};
+            const char* stationPtrs[MAX_RUNTIME_TARGETS] = {};
+            const char* linePtrs[MAX_RUNTIME_TARGETS] = {};
+            const char* errorDetails = nullptr;
+
+            const size_t pairCount =
+                parseLinePairs(server, stationStorage, lineStorage, stationPtrs, linePtrs, &errorDetails);
+            if (pairCount == 0) {
+                return stepRejected(errorDetails);
+            }
+
+            return saveBuildInfoLinesConfig(stationPtrs, linePtrs, pairCount)
+                       ? stepOk()
+                       : stepFailed("Failed to save build info");
+        }
+        case BuildState::USE_CURRENT_BUILD:
+            // Leave the existing payload alone so the resolver can reuse the last
+            // concrete mode's data. selectBuildState already proved it is usable.
+            return stepOk();
+    }
+
+    return stepFailed("Unknown build state");
+}
+
+StepResult persistSelection(WebServer& server, BuildState state) {
+    if (!saveBuildStateConfig(state)) {
+        return stepFailed("Failed to save build state");
+    }
+
+    if (state != BuildState::USE_CURRENT_BUILD && !saveLastConcreteBuildStateConfig(state)) {
+        return stepFailed("Failed to save concrete build state");
+    }
+
+    return persistBuildInfo(server, state);
+}
+
+// Best-effort join of the user's own network, after the config is already safely
+// on flash. Failing here is still a successful provisioning.
+void finishWithStaConnect(SubmissionState& submissionState, const String& ssid, const String& password) {
+    const bool connected =
+        tryStaConnect(ssid.c_str(), password.c_str(), RUNTIME_BUILD_PORTAL_STA_CONNECT_TIMEOUT_MS);
+
+    submissionState.finished = true;
+    submissionState.result = connected ? PORTAL_SAVE_AND_CONNECT_OK : PORTAL_SAVE_OK_CONNECT_FAILED;
+    submissionState.details = connected ? "Config saved. Wi-Fi connected." : "Config saved. Wi-Fi connect failed.";
+}
+
+void handleSubmit(WebServer& server, SubmissionState& submissionState) {
+    BuildState selectedState = BuildState::BUS_BY_STATION;
+    if (!applyStep(server, submissionState, selectBuildState(server, selectedState))) {
+        return;
+    }
+
+    String ssid;
+    String password;
+    if (!applyStep(server, submissionState, resolveWifiCredentials(server, ssid, password))) {
+        return;
+    }
+
+    if (!applyStep(server, submissionState, persistSelection(server, selectedState))) {
+        return;
+    }
+
+    // Answer before connecting: tryStaConnect blocks for up to
+    // RUNTIME_BUILD_PORTAL_STA_CONNECT_TIMEOUT_MS, long enough for the browser
+    // to give up on the request.
+    server.send(200, "text/html", buildResultHtml("Config saved. Connecting to Wi-Fi…"));
+    finishWithStaConnect(submissionState, ssid, password);
+}
+
+void registerRoutes(WebServer& server, IPAddress apIp, SubmissionState& submissionState) {
     server.on("/", HTTP_GET, [&server]() {
         if (!serveStaticFile(server, "/portal/index.html", "text/html")) {
             server.send(500, "text/plain", "Missing /portal/index.html");
@@ -267,7 +386,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
     // the WiFi interface. Returning 204 would mark the network as "has
     // internet" and cancel the WiFi binding, causing all subsequent requests
     // (including the portal page load) to route through cellular.
-    server.on("/generate_204", HTTP_GET, [&apIp, &server]() {
+    server.on("/generate_204", HTTP_GET, [apIp, &server]() {
         String url = String("http://") + apIp.toString() + "/";
         server.sendHeader("Location", url, true);
         server.send(302, "text/plain", "");
@@ -275,14 +394,14 @@ RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
 
     // iOS captive-portal probe. Returning anything other than the "Success"
     // page triggers the captive portal popup and keeps the WebView WiFi-bound.
-    server.on("/hotspot-detect.html", HTTP_GET, [&apIp, &server]() {
+    server.on("/hotspot-detect.html", HTTP_GET, [apIp, &server]() {
         String url = String("http://") + apIp.toString() + "/";
         server.sendHeader("Location", url, true);
         server.send(302, "text/plain", "");
     });
 
     // Windows / older captive-portal redirect.
-    server.on("/fwlink", HTTP_GET, [&apIp, &server]() {
+    server.on("/fwlink", HTTP_GET, [apIp, &server]() {
         String url = String("http://") + apIp.toString() + "/";
         server.sendHeader("Location", url, true);
         server.send(302, "text/plain", "");
@@ -300,135 +419,57 @@ RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
         server.send(200, "application/json", hasSaved ? "{\"hasSaved\":true}" : "{\"hasSaved\":false}");
     });
 
-    server.on("/submit", HTTP_POST, [&server, &submissionState]() {
-        BuildState selectedState = BuildState::BUS_BY_STATION;
+    server.on("/submit", HTTP_POST, [&server, &submissionState]() { handleSubmit(server, submissionState); });
 
-        const String modeValue = readTrimmedArg(server, "state");
-        const bool useSavedWifi = server.arg("useSavedWifi") == "1";
-
-        if (!parseBuildStateFromForm(modeValue, selectedState)) {
-            rejectSubmission(server, "Invalid activation mode");
-            return;
-        }
-
-        // "Keep current build" persists no build info of its own; it relies on the
-        // last concrete state and the build_info payload already on flash. Reject
-        // it before saving anything if that fallback is missing or unparseable,
-        // otherwise the next boot halts in App::loadConfig() with no way back.
-        if (selectedState == BuildState::USE_CURRENT_BUILD && !hasKeepableBuild()) {
-            rejectSubmission(server, "No previous build to keep - choose a specific mode");
-            return;
-        }
-
-        char savedSsid[MAX_WIFI_SSID_LEN] = {};
-        char savedPassword[MAX_WIFI_PASSWORD_LEN] = {};
-        String ssidValue;
-        String passwordValue;
-
-        if (useSavedWifi) {
-            if (!loadWifiCredentialsConfig(savedSsid, sizeof(savedSsid), savedPassword, sizeof(savedPassword))) {
-                rejectSubmission(server, "No saved Wi-Fi credentials found");
-                return;
-            }
-            ssidValue = savedSsid;
-            passwordValue = savedPassword;
-        } else {
-            ssidValue = readTrimmedArg(server, "ssid");
-            passwordValue = server.arg("password");  // See readTrimmedArg: passwords are taken verbatim.
-
-            if (!isLengthValid(ssidValue.c_str(), MAX_WIFI_SSID_LEN) ||
-                !isLengthValid(passwordValue.c_str(), MAX_WIFI_PASSWORD_LEN)) {
-                rejectSubmission(server, "Invalid Wi-Fi credentials");
-                return;
-            }
-
-            if (!saveWifiCredentialsConfig(ssidValue.c_str(), passwordValue.c_str())) {
-                abortSubmission(submissionState, server, "Failed to save Wi-Fi config");
-                return;
-            }
-        }
-
-        if (!saveBuildStateConfig(selectedState)) {
-            abortSubmission(submissionState, server, "Failed to save build state");
-            return;
-        }
-
-        if (selectedState != BuildState::USE_CURRENT_BUILD && !saveLastConcreteBuildStateConfig(selectedState)) {
-            abortSubmission(submissionState, server, "Failed to save concrete build state");
-            return;
-        }
-
-        bool saveBuildInfoOk = false;
-        switch (selectedState) {
-            case BuildState::BUS_BY_STATION:
-            case BuildState::NY_METRO_BY_STATION: {
-                const String stationValue = readTrimmedArg(server, "stationId");
-                if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN)) {
-                    rejectSubmission(server, "Station ID is required");
-                    return;
-                }
-
-                saveBuildInfoOk = saveBuildInfoStationConfig(stationValue.c_str());
-                break;
-            }
-            case BuildState::BUS_BY_LINES: {
-                char stationStorage[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN] = {};
-                char lineStorage[MAX_RUNTIME_TARGETS][MAX_LINE_LEN] = {};
-                const char* stationPtrs[MAX_RUNTIME_TARGETS] = {};
-                const char* linePtrs[MAX_RUNTIME_TARGETS] = {};
-                const char* errorDetails = nullptr;
-
-                size_t pairCount = parseLinePairs(server, stationStorage, lineStorage, stationPtrs, linePtrs, &errorDetails);
-                if (pairCount == 0) {
-                    rejectSubmission(server, errorDetails);
-                    return;
-                }
-
-                saveBuildInfoOk = saveBuildInfoLinesConfig(stationPtrs, linePtrs, pairCount);
-                break;
-            }
-            case BuildState::USE_CURRENT_BUILD:
-                // Keep existing build_info payload so resolver can reuse the last concrete mode data.
-                saveBuildInfoOk = true;
-                break;
-            default:
-                break;
-        }
-
-        if (!saveBuildInfoOk) {
-            abortSubmission(submissionState, server, "Failed to save build info");
-            return;
-        }
-
-        // Respond immediately so the browser doesn't time out waiting while
-        // we spend up to RUNTIME_BUILD_PORTAL_STA_CONNECT_TIMEOUT_MS trying
-        // to connect to the home network.
-        server.send(200, "text/html", buildResultHtml("Config saved. Connecting to Wi-Fi\u2026"));
-
-        const bool connected = tryStaConnect(ssidValue.c_str(), passwordValue.c_str(), RUNTIME_BUILD_PORTAL_STA_CONNECT_TIMEOUT_MS);
-        submissionState.finished = true;
-        submissionState.result = connected ? PORTAL_SAVE_AND_CONNECT_OK : PORTAL_SAVE_OK_CONNECT_FAILED;
-        submissionState.details = connected ? "Config saved. Wi-Fi connected." : "Config saved. Wi-Fi connect failed.";
-    });
-
-    server.onNotFound([&apIp, &server]() {
+    server.onNotFound([apIp, &server]() {
         String url = String("http://") + apIp.toString() + "/";
         server.sendHeader("Location", url, true);
         server.send(302, "text/plain", "");
     });
+}
 
-    server.begin();
-    Serial.printf("[RuntimeBuildPortal] AP started. SSID: %s Password: %s IP: %s\n", kApSsid,
-                  apPassword.c_str(), apIp.toString().c_str());
+// Brings up the WPA2 provisioning AP and waits for its address to settle.
+// Returns false with the radio already handed back on failure.
+bool startProvisioningAp(String& outPassword, IPAddress& outIp) {
+    // Ensure a clean WiFi state before starting the AP: stop any background
+    // reconnect attempts that would fight over the radio channel.
+    WiFi.setAutoReconnect(false);
+    WiFi.disconnect(false);
+    delay(100);
 
-    // The AP is WPA2-protected, so the passphrase has to reach the user somehow;
-    // the panel is the only channel they are guaranteed to have.
-    if (notify) {
-        notify((String("Setup PW ") + apPassword).c_str());
+    WiFi.mode(WIFI_AP_STA);
+    delay(100);  // Let the mode transition settle before starting the AP.
+
+    outPassword = makeApPassword();
+    if (!WiFi.softAP(kApSsid, outPassword.c_str())) {
+        Serial.println("[RuntimeBuildPortal] Failed to start AP");
+        WiFi.setAutoReconnect(true);
+        return false;
     }
 
+    // softAPIP() can return 0.0.0.0 for a brief window after softAP() returns.
+    // Wait until the interface has its real address before handing it to the
+    // DNS server, otherwise the wildcard redirect points at 0.0.0.0.
+    const unsigned long ipWait = millis();
+    while ((outIp = WiFi.softAPIP()) == IPAddress(0, 0, 0, 0) && millis() - ipWait < 3000) {
+        delay(50);
+    }
+
+    if (outIp == IPAddress(0, 0, 0, 0)) {
+        Serial.println("[RuntimeBuildPortal] AP IP not ready after timeout");
+        WiFi.softAPdisconnect(true);
+        WiFi.setAutoReconnect(true);
+        return false;
+    }
+
+    return true;
+}
+
+// Services the portal until a submission completes or a timeout expires.
+void runPortalLoop(WebServer& server, DNSServer& dnsServer, SubmissionState& submissionState) {
     const unsigned long sessionStart = millis();
     unsigned long idleStart = sessionStart;
+
     while (!submissionState.finished) {
         dnsServer.processNextRequest();
         server.handleClient();
@@ -451,6 +492,40 @@ RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
 
         delay(10);
     }
+}
+
+} // namespace
+
+RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
+    DNSServer dnsServer;
+    WebServer server(80);
+    SubmissionState submissionState = {false, PORTAL_INTERNAL_ERROR, "Internal error"};
+
+    if (!LittleFS.begin(false)) {
+        Serial.println("[RuntimeBuildPortal] LittleFS mount failed");
+        return PORTAL_INTERNAL_ERROR;
+    }
+
+    String apPassword;
+    IPAddress apIp;
+    if (!startProvisioningAp(apPassword, apIp)) {
+        return PORTAL_INTERNAL_ERROR;
+    }
+
+    dnsServer.start(53, "*", apIp);
+    registerRoutes(server, apIp, submissionState);
+
+    server.begin();
+    Serial.printf("[RuntimeBuildPortal] AP started. SSID: %s Password: %s IP: %s\n", kApSsid,
+                  apPassword.c_str(), apIp.toString().c_str());
+
+    // The AP is WPA2-protected, so the passphrase has to reach the user somehow;
+    // the panel is the only channel they are guaranteed to have.
+    if (notify) {
+        notify((String("Setup PW ") + apPassword).c_str());
+    }
+
+    runPortalLoop(server, dnsServer, submissionState);
 
     server.stop();
     dnsServer.stop();
