@@ -381,31 +381,26 @@ void registerRoutes(WebServer& server, IPAddress apIp, SubmissionState& submissi
         }
     });
 
-    // Android captive-portal probe. Returning 302 keeps the network in
-    // "captive portal" state so Android's sign-in WebView stays bound to
-    // the WiFi interface. Returning 204 would mark the network as "has
-    // internet" and cancel the WiFi binding, causing all subsequent requests
-    // (including the portal page load) to route through cellular.
-    server.on("/generate_204", HTTP_GET, [apIp, &server]() {
-        String url = String("http://") + apIp.toString() + "/";
-        server.sendHeader("Location", url, true);
+    // Answering the OS probes with a redirect rather than the success response
+    // they expect is what keeps the network in "captive portal" state. On
+    // Android in particular, a 204 would mark the network as "has internet" and
+    // cancel the WiFi binding, so every later request -- including the portal
+    // page itself -- would be routed over cellular and never reach us.
+    auto redirectToPortal = [apIp, &server]() {
+        server.sendHeader("Location", String("http://") + apIp.toString() + "/", true);
         server.send(302, "text/plain", "");
-    });
+    };
 
-    // iOS captive-portal probe. Returning anything other than the "Success"
-    // page triggers the captive portal popup and keeps the WebView WiFi-bound.
-    server.on("/hotspot-detect.html", HTTP_GET, [apIp, &server]() {
-        String url = String("http://") + apIp.toString() + "/";
-        server.sendHeader("Location", url, true);
-        server.send(302, "text/plain", "");
-    });
+    for (const char* probePath : {
+             "/generate_204",         // Android
+             "/hotspot-detect.html",  // iOS
+             "/fwlink",               // Windows and older clients
+         }) {
+        server.on(probePath, HTTP_GET, redirectToPortal);
+    }
 
-    // Windows / older captive-portal redirect.
-    server.on("/fwlink", HTTP_GET, [apIp, &server]() {
-        String url = String("http://") + apIp.toString() + "/";
-        server.sendHeader("Location", url, true);
-        server.send(302, "text/plain", "");
-    });
+    // Anything else the client asks for lands on the portal page too.
+    server.onNotFound(redirectToPortal);
 
     server.on("/wifi-status", HTTP_GET, [&server]() {
         char savedSsid[MAX_WIFI_SSID_LEN] = {};
@@ -420,12 +415,6 @@ void registerRoutes(WebServer& server, IPAddress apIp, SubmissionState& submissi
     });
 
     server.on("/submit", HTTP_POST, [&server, &submissionState]() { handleSubmit(server, submissionState); });
-
-    server.onNotFound([apIp, &server]() {
-        String url = String("http://") + apIp.toString() + "/";
-        server.sendHeader("Location", url, true);
-        server.send(302, "text/plain", "");
-    });
 }
 
 // Brings up the WPA2 provisioning AP and waits for its address to settle.
