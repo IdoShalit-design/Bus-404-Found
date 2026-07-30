@@ -6,12 +6,12 @@
 #include "Fetchers/IBusFetcher.h"
 #include "Display/IRenderer.h"
 
-typedef enum BuildState {
+enum class BuildState {
     BUS_BY_STATION = 0,
     BUS_BY_LINES = 1,
     NY_METRO_BY_STATION = 2,
     USE_CURRENT_BUILD,
-} BuildState;
+};
 
 #define WIFI_CREDENTIAL_MAX_LEN 64
 #define MAX_BUS_TARGETS 3
@@ -20,7 +20,7 @@ typedef enum BuildState {
 /**
  * @brief Holds the complete application configuration.
  */
-typedef struct AppConfig {
+struct AppConfig {
     BuildState state;
     char wifiSSID[WIFI_CREDENTIAL_MAX_LEN];
     char wifiPassword[WIFI_CREDENTIAL_MAX_LEN];
@@ -28,7 +28,7 @@ typedef struct AppConfig {
         BusTarget lines[MAX_BUS_TARGETS];
         char stationid[STATION_ID_MAX_LEN];
     };
-} AppConfig;
+};
 
 bool build(BuildState state, std::unique_ptr<IBusFetcher>& fetcher, std::unique_ptr<IRenderer>& renderer);
 

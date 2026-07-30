@@ -35,19 +35,19 @@ bool tryStaConnect(const char* ssid, const char* password, unsigned long timeout
 
 bool parseBuildStateFromForm(const String& modeValue, BuildState& outState) {
     if (modeValue == "BUS_BY_STATION") {
-        outState = BUS_BY_STATION;
+        outState = BuildState::BUS_BY_STATION;
         return true;
     }
     if (modeValue == "BUS_BY_LINES") {
-        outState = BUS_BY_LINES;
+        outState = BuildState::BUS_BY_LINES;
         return true;
     }
     if (modeValue == "NY_METRO_BY_STATION") {
-        outState = NY_METRO_BY_STATION;
+        outState = BuildState::NY_METRO_BY_STATION;
         return true;
     }
     if (modeValue == "USE_CURRENT_BUILD") {
-        outState = USE_CURRENT_BUILD;
+        outState = BuildState::USE_CURRENT_BUILD;
         return true;
     }
 
@@ -227,7 +227,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
     });
 
     server.on("/submit", HTTP_POST, [&server, &submissionState]() {
-        BuildState selectedState = BUS_BY_STATION;
+        BuildState selectedState = BuildState::BUS_BY_STATION;
 
         const String modeValue = server.arg("state");
         const bool useSavedWifi = server.arg("useSavedWifi") == "1";
@@ -285,7 +285,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
             return;
         }
 
-        if (selectedState != USE_CURRENT_BUILD && !saveLastConcreteBuildStateConfig(selectedState)) {
+        if (selectedState != BuildState::USE_CURRENT_BUILD && !saveLastConcreteBuildStateConfig(selectedState)) {
             submissionState.finished = true;
             submissionState.result = PORTAL_INTERNAL_ERROR;
             submissionState.details = "Failed to save concrete build state";
@@ -295,8 +295,8 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
 
         bool saveBuildInfoOk = false;
         switch (selectedState) {
-            case BUS_BY_STATION:
-            case NY_METRO_BY_STATION: {
+            case BuildState::BUS_BY_STATION:
+            case BuildState::NY_METRO_BY_STATION: {
                 const String stationValue = server.arg("stationId");
                 if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN)) {
                     submissionState.finished = true;
@@ -309,7 +309,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
                 saveBuildInfoOk = saveBuildInfoStationConfig(stationValue.c_str());
                 break;
             }
-            case BUS_BY_LINES: {
+            case BuildState::BUS_BY_LINES: {
                 char stationStorage[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN] = {};
                 char lineStorage[MAX_RUNTIME_TARGETS][MAX_LINE_LEN] = {};
                 const char* stationPtrs[MAX_RUNTIME_TARGETS] = {};
@@ -328,7 +328,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
                 saveBuildInfoOk = saveBuildInfoLinesConfig(stationPtrs, linePtrs, pairCount);
                 break;
             }
-            case USE_CURRENT_BUILD:
+            case BuildState::USE_CURRENT_BUILD:
                 // Keep existing build_info payload so resolver can reuse the last concrete mode data.
                 saveBuildInfoOk = true;
                 break;

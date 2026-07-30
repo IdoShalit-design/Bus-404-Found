@@ -15,13 +15,13 @@ constexpr uint8_t kConfigVersion = 1;
 
 const char* buildStateToString(BuildState state) {
     switch (state) {
-        case BUS_BY_STATION:
+        case BuildState::BUS_BY_STATION:
             return "BUS_BY_STATION";
-        case BUS_BY_LINES:
+        case BuildState::BUS_BY_LINES:
             return "BUS_BY_LINES";
-        case NY_METRO_BY_STATION:
+        case BuildState::NY_METRO_BY_STATION:
             return "NY_METRO_BY_STATION";
-        case USE_CURRENT_BUILD:
+        case BuildState::USE_CURRENT_BUILD:
             return "USE_CURRENT_BUILD";
         default:
             return nullptr;
@@ -34,19 +34,19 @@ bool parseBuildState(const char* stateText, BuildState& outState) {
     }
 
     if (strcmp(stateText, "BUS_BY_STATION") == 0) {
-        outState = BUS_BY_STATION;
+        outState = BuildState::BUS_BY_STATION;
         return true;
     }
     if (strcmp(stateText, "BUS_BY_LINES") == 0) {
-        outState = BUS_BY_LINES;
+        outState = BuildState::BUS_BY_LINES;
         return true;
     }
     if (strcmp(stateText, "NY_METRO_BY_STATION") == 0) {
-        outState = NY_METRO_BY_STATION;
+        outState = BuildState::NY_METRO_BY_STATION;
         return true;
     }
     if (strcmp(stateText, "USE_CURRENT_BUILD") == 0) {
-        outState = USE_CURRENT_BUILD;
+        outState = BuildState::USE_CURRENT_BUILD;
         return true;
     }
 
@@ -167,7 +167,7 @@ bool saveLastConcreteBuildStateConfig(BuildState state) {
         return false;
     }
 
-    if (state == USE_CURRENT_BUILD) {
+    if (state == BuildState::USE_CURRENT_BUILD) {
         Serial.println("[ConfigManager] Refusing to save USE_CURRENT_BUILD as concrete state");
         return false;
     }

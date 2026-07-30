@@ -21,13 +21,13 @@ constexpr unsigned long kHaltPollMs = 1000UL;
 
 const char* buildStateToString(BuildState state) {
     switch (state) {
-        case BUS_BY_STATION:
+        case BuildState::BUS_BY_STATION:
             return "BUS_BY_STATION";
-        case BUS_BY_LINES:
+        case BuildState::BUS_BY_LINES:
             return "BUS_BY_LINES";
-        case NY_METRO_BY_STATION:
+        case BuildState::NY_METRO_BY_STATION:
             return "NY_METRO_BY_STATION";
-        case USE_CURRENT_BUILD:
+        case BuildState::USE_CURRENT_BUILD:
             return "USE_CURRENT_BUILD";
         default:
             return "UNKNOWN";
