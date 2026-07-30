@@ -79,6 +79,20 @@ bool hasKeepableBuild() {
     return true;
 }
 
+// Reads a form field with surrounding whitespace stripped. WebServer::arg returns
+// an empty String for an absent field, so "missing" and "blank" collapse to the
+// same value here -- both are rejected by isLengthValid, which is what we want.
+//
+// Every field goes through this except the Wi-Fi password: whitespace can be
+// meaningful there, it is typed into a masked input where the user cannot see
+// what was trimmed, and silently altering it would produce a device that saves
+// credentials it can never connect with.
+String readTrimmedArg(WebServer& server, const char* name) {
+    String value = server.arg(name);
+    value.trim();
+    return value;
+}
+
 bool isLengthValid(const char* value, size_t maxLen) {
     return value != nullptr && value[0] != '\0' && strlen(value) < maxLen;
 }
@@ -106,10 +120,8 @@ size_t parseLinePairs(WebServer& server,
     size_t count = 0;
 
     for (size_t i = 0; i < MAX_RUNTIME_TARGETS; i++) {
-        String stationValue = server.arg(kLineStationFields[i]);
-        String lineValue = server.arg(kLineNumberFields[i]);
-        stationValue.trim();
-        lineValue.trim();
+        const String stationValue = readTrimmedArg(server, kLineStationFields[i]);
+        const String lineValue = readTrimmedArg(server, kLineNumberFields[i]);
 
         const bool hasStation = stationValue.length() > 0;
         const bool hasLine = lineValue.length() > 0;
@@ -271,7 +283,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
     server.on("/submit", HTTP_POST, [&server, &submissionState]() {
         BuildState selectedState = BuildState::BUS_BY_STATION;
 
-        const String modeValue = server.arg("state");
+        const String modeValue = readTrimmedArg(server, "state");
         const bool useSavedWifi = server.arg("useSavedWifi") == "1";
 
         if (!parseBuildStateFromForm(modeValue, selectedState)) {
@@ -301,8 +313,8 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
             ssidValue = savedSsid;
             passwordValue = savedPassword;
         } else {
-            ssidValue = server.arg("ssid");
-            passwordValue = server.arg("password");
+            ssidValue = readTrimmedArg(server, "ssid");
+            passwordValue = server.arg("password");  // See readTrimmedArg: passwords are taken verbatim.
 
             if (!isLengthValid(ssidValue.c_str(), MAX_WIFI_SSID_LEN) ||
                 !isLengthValid(passwordValue.c_str(), MAX_WIFI_PASSWORD_LEN)) {
@@ -330,7 +342,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         switch (selectedState) {
             case BuildState::BUS_BY_STATION:
             case BuildState::NY_METRO_BY_STATION: {
-                const String stationValue = server.arg("stationId");
+                const String stationValue = readTrimmedArg(server, "stationId");
                 if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN)) {
                     rejectSubmission(server, "Station ID is required");
                     return;
