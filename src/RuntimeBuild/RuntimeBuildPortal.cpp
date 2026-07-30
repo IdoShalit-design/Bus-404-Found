@@ -417,8 +417,22 @@ void registerRoutes(WebServer& server, IPAddress apIp, SubmissionState& submissi
     server.on("/submit", HTTP_POST, [&server, &submissionState]() { handleSubmit(server, submissionState); });
 }
 
+// Puts the radio back the way the rest of the firmware expects to find it:
+// station mode, no access point, auto-reconnect on. Doing this in a destructor
+// rather than at each return is what makes the early-error paths correct -- they
+// previously restored three different subsets of the state, and two of them left
+// the chip in WIFI_AP_STA, recovered only by App::connectWifi() happening to set
+// the mode again.
+struct RadioRestore {
+    ~RadioRestore() {
+        WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_STA);
+        WiFi.setAutoReconnect(true);
+    }
+};
+
 // Brings up the WPA2 provisioning AP and waits for its address to settle.
-// Returns false with the radio already handed back on failure.
+// Cleanup on failure is the caller's RadioRestore guard.
 bool startProvisioningAp(String& outPassword, IPAddress& outIp) {
     // Ensure a clean WiFi state before starting the AP: stop any background
     // reconnect attempts that would fight over the radio channel.
@@ -432,7 +446,6 @@ bool startProvisioningAp(String& outPassword, IPAddress& outIp) {
     outPassword = makeApPassword();
     if (!WiFi.softAP(kApSsid, outPassword.c_str())) {
         Serial.println("[RuntimeBuildPortal] Failed to start AP");
-        WiFi.setAutoReconnect(true);
         return false;
     }
 
@@ -446,8 +459,6 @@ bool startProvisioningAp(String& outPassword, IPAddress& outIp) {
 
     if (outIp == IPAddress(0, 0, 0, 0)) {
         Serial.println("[RuntimeBuildPortal] AP IP not ready after timeout");
-        WiFi.softAPdisconnect(true);
-        WiFi.setAutoReconnect(true);
         return false;
     }
 
@@ -497,6 +508,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
 
     String apPassword;
     IPAddress apIp;
+    RadioRestore radioRestore;  // Must outlive every return below.
     if (!startProvisioningAp(apPassword, apIp)) {
         return PORTAL_INTERNAL_ERROR;
     }
@@ -518,9 +530,6 @@ RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
 
     server.stop();
     dnsServer.stop();
-    WiFi.softAPdisconnect(true);
-    WiFi.mode(WIFI_STA);
-    WiFi.setAutoReconnect(true);
 
     Serial.printf("[RuntimeBuildPortal] Exit: %d (%s)\n", static_cast<int>(submissionState.result), submissionState.details);
     return submissionState.result;
