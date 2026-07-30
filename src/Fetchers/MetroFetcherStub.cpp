@@ -35,8 +35,8 @@ bool MetroFetcherStub::update(BusTarget& bus) {
     copyBounded(bus.line, sizeof(bus.line), arrival.line);
     copyBounded(bus.destination, sizeof(bus.destination), arrival.destination);
     copyBounded(bus.last_known_ETA, sizeof(bus.last_known_ETA), arrival.eta);
-    bus.is_realtime = arrival.isRealtime;
-    bus.minutes_remaining = arrival.minutesRemaining;
+    bus.is_realtime = arrival.is_realtime;
+    bus.minutes_remaining = arrival.minutes_remaining;
     bus.no_data = false;
     return true;
 }

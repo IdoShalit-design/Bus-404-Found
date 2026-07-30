@@ -11,8 +11,8 @@ public:
         const char* line;
         const char* destination;
         const char* eta;
-        bool isRealtime;
-        int minutesRemaining;
+        bool is_realtime;
+        int minutes_remaining;
     };
 
 private:

@@ -147,8 +147,8 @@ bool CurlBusFetcherByStation::loadNextArrivals(const char* stationId) {
         copyBounded(_arrivals[_arrivalCount].destination, sizeof(_arrivals[_arrivalCount].destination), destination);
         strncpy(_arrivals[_arrivalCount].eta, eta + 11, 5);
         _arrivals[_arrivalCount].eta[5] = '\0';
-        _arrivals[_arrivalCount].isRealtime = !visit["location"].isNull();
-        _arrivals[_arrivalCount].minutesRemaining = computeMinutesRemaining(eta);
+        _arrivals[_arrivalCount].is_realtime = !visit["location"].isNull();
+        _arrivals[_arrivalCount].minutes_remaining = computeMinutesRemaining(eta);
         _arrivalCount++;
     }
 
@@ -179,8 +179,8 @@ bool CurlBusFetcherByStation::update(BusTarget& bus) {
     copyBounded(bus.line, sizeof(bus.line), arrival.line);
     copyBounded(bus.destination, sizeof(bus.destination), arrival.destination);
     copyBounded(bus.last_known_ETA, sizeof(bus.last_known_ETA), arrival.eta);
-    bus.is_realtime = arrival.isRealtime;
-    bus.minutes_remaining = arrival.minutesRemaining;
+    bus.is_realtime = arrival.is_realtime;
+    bus.minutes_remaining = arrival.minutes_remaining;
     bus.no_data = false;
     return true;
 }

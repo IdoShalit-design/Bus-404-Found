@@ -15,8 +15,8 @@ private:
         char line[16];
         char destination[48];
         char eta[6];
-        bool isRealtime;
-        int minutesRemaining;
+        bool is_realtime;
+        int minutes_remaining;
     };
 
     DynamicJsonDocument* _doc;
