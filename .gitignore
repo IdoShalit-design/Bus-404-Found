@@ -60,3 +60,9 @@ _codeql_detected_source_root
 # Python bytecode cache
 __pycache__/
 *.pyc
+
+# auto-fix-issues run logs (session ids, progress, driver output)
+.auto_fix_logs/
+
+# Claude Code local config
+.claude/
