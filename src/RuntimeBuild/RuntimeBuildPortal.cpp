@@ -194,13 +194,50 @@ LineTargets parseLinePairs(WebServer& server) {
     return targets;
 }
 
+// Escapes text for interpolation into an HTML element body or a quoted
+// attribute. Every caller of buildResultHtml passes a literal today, but the
+// obvious next change -- echoing the offending value back, "Invalid station ID:
+// <input>" -- would otherwise turn the result page into reflected XSS against a
+// portal served over the air, with nothing in the signature to warn against it.
+String escapeHtml(const char* text) {
+    String escaped;
+    if (text == nullptr) {
+        return escaped;
+    }
+
+    for (const char* cursor = text; *cursor != '\0'; cursor++) {
+        switch (*cursor) {
+            case '&':
+                escaped += "&amp;";
+                break;
+            case '<':
+                escaped += "&lt;";
+                break;
+            case '>':
+                escaped += "&gt;";
+                break;
+            case '"':
+                escaped += "&quot;";
+                break;
+            case '\'':
+                escaped += "&#39;";
+                break;
+            default:
+                escaped += *cursor;
+                break;
+        }
+    }
+
+    return escaped;
+}
+
 String buildResultHtml(const char* message) {
     String html;
     html.reserve(kResultHtmlReserveBytes);
     html += "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
     html += "<title>Runtime Build Result</title></head><body style='font-family:Segoe UI,Arial,sans-serif;padding:24px;background:#f4f6fb;'>";
     html += "<h2>";
-    html += message;
+    html += escapeHtml(message);
     html += "</h2><p>You can close this page.</p></body></html>";
     return html;
 }
