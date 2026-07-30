@@ -16,11 +16,18 @@ constexpr const char* kApSsid = "Bus-404-Found-Setup";
 // Prefix for the generated WPA2 passphrase; the MAC suffix is appended to it.
 constexpr const char* kApPasswordPrefix = "bus";
 
+// How long to keep the AP up with nobody associated.
+constexpr unsigned long kNoClientTimeoutMs = 40000UL;
+
+// How long to wait for the STA join after a submission is already saved.
+constexpr unsigned long kStaConnectTimeoutMs = 10000UL;
+
 // Hard cap on a whole portal session. The no-client timeout is reset whenever a
 // station is associated, so on its own it cannot bound anything: a phone that
-// auto-joins the open AP and then idles would block boot indefinitely, since the
+// auto-joins the AP and then idles would block boot indefinitely, since the
 // portal runs before the rest of App::setup().
 constexpr unsigned long kMaxSessionMs = 300000UL;
+
 // Must stay in step with the per-line inputs in data/portal/index.html, which
 // cannot be checked at compile time. Sizing these from their initialisers rather
 // than from MAX_RUNTIME_TARGETS means raising that constant is a build error here
@@ -344,7 +351,7 @@ StepResult persistSelection(WebServer& server, BuildState state) {
 // on flash. Failing here is still a successful provisioning.
 void finishWithStaConnect(SubmissionState& submissionState, const String& ssid, const String& password) {
     const bool connected =
-        tryStaConnect(ssid.c_str(), password.c_str(), RUNTIME_BUILD_PORTAL_STA_CONNECT_TIMEOUT_MS);
+        tryStaConnect(ssid.c_str(), password.c_str(), kStaConnectTimeoutMs);
 
     submissionState.finished = true;
     submissionState.result = connected ? PORTAL_SAVE_AND_CONNECT_OK : PORTAL_SAVE_OK_CONNECT_FAILED;
@@ -368,8 +375,7 @@ void handleSubmit(WebServer& server, SubmissionState& submissionState) {
     }
 
     // Answer before connecting: tryStaConnect blocks for up to
-    // RUNTIME_BUILD_PORTAL_STA_CONNECT_TIMEOUT_MS, long enough for the browser
-    // to give up on the request.
+    // kStaConnectTimeoutMs, long enough for the browser to give up on the request.
     server.send(200, "text/html", buildResultHtml("Config saved. Connecting to Wi-Fi…"));
     finishWithStaConnect(submissionState, ssid, password);
 }
@@ -483,7 +489,7 @@ void runPortalLoop(WebServer& server, DNSServer& dnsServer, SubmissionState& sub
 
         if (WiFi.softAPgetStationNum() > 0) {
             idleStart = millis();
-        } else if (millis() - idleStart >= RUNTIME_BUILD_PORTAL_NO_CLIENT_TIMEOUT_MS) {
+        } else if (millis() - idleStart >= kNoClientTimeoutMs) {
             submissionState.finished = true;
             submissionState.result = PORTAL_TIMEOUT_NO_CLIENT;
             submissionState.details = "Timed out waiting for AP client";
