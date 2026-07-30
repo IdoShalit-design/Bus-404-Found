@@ -130,6 +130,23 @@ String buildResultHtml(const char* message) {
     return html;
 }
 
+// Rejects the current submission but leaves the portal running, so the user can
+// correct the form and resubmit. submissionState is deliberately left untouched:
+// a rejected attempt must not become the portal's reported outcome.
+void rejectSubmission(WebServer& server, const char* details) {
+    Serial.printf("[RuntimeBuildPortal] Rejected submission: %s\n", details);
+    server.send(400, "text/html", buildResultHtml(details));
+}
+
+// Ends the portal session. Reserved for failures the user cannot recover from by
+// resubmitting, such as a flash write failure.
+void abortSubmission(SubmissionState& submissionState, WebServer& server, const char* details) {
+    submissionState.finished = true;
+    submissionState.result = PORTAL_INTERNAL_ERROR;
+    submissionState.details = details;
+    server.send(500, "text/html", buildResultHtml(details));
+}
+
 } // namespace
 
 RuntimeBuildPortalResult runRuntimeBuildPortal() {
@@ -233,10 +250,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         const bool useSavedWifi = server.arg("useSavedWifi") == "1";
 
         if (!parseBuildStateFromForm(modeValue, selectedState)) {
-            submissionState.finished = true;
-            submissionState.result = PORTAL_VALIDATION_ERROR;
-            submissionState.details = "Invalid activation mode";
-            server.send(400, "text/html", buildResultHtml(submissionState.details));
+            rejectSubmission(server, "Invalid activation mode");
             return;
         }
 
@@ -247,10 +261,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
 
         if (useSavedWifi) {
             if (!loadWifiCredentialsConfig(savedSsid, sizeof(savedSsid), savedPassword, sizeof(savedPassword))) {
-                submissionState.finished = true;
-                submissionState.result = PORTAL_VALIDATION_ERROR;
-                submissionState.details = "No saved Wi-Fi credentials found";
-                server.send(400, "text/html", buildResultHtml(submissionState.details));
+                rejectSubmission(server, "No saved Wi-Fi credentials found");
                 return;
             }
             ssidValue = savedSsid;
@@ -261,35 +272,23 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
 
             if (!isLengthValid(ssidValue.c_str(), MAX_WIFI_SSID_LEN) ||
                 !isLengthValid(passwordValue.c_str(), MAX_WIFI_PASSWORD_LEN)) {
-                submissionState.finished = true;
-                submissionState.result = PORTAL_VALIDATION_ERROR;
-                submissionState.details = "Invalid Wi-Fi credentials";
-                server.send(400, "text/html", buildResultHtml(submissionState.details));
+                rejectSubmission(server, "Invalid Wi-Fi credentials");
                 return;
             }
 
             if (!saveWifiCredentialsConfig(ssidValue.c_str(), passwordValue.c_str())) {
-                submissionState.finished = true;
-                submissionState.result = PORTAL_INTERNAL_ERROR;
-                submissionState.details = "Failed to save Wi-Fi config";
-                server.send(500, "text/html", buildResultHtml(submissionState.details));
+                abortSubmission(submissionState, server, "Failed to save Wi-Fi config");
                 return;
             }
         }
 
         if (!saveBuildStateConfig(selectedState)) {
-            submissionState.finished = true;
-            submissionState.result = PORTAL_INTERNAL_ERROR;
-            submissionState.details = "Failed to save build state";
-            server.send(500, "text/html", buildResultHtml(submissionState.details));
+            abortSubmission(submissionState, server, "Failed to save build state");
             return;
         }
 
         if (selectedState != BuildState::USE_CURRENT_BUILD && !saveLastConcreteBuildStateConfig(selectedState)) {
-            submissionState.finished = true;
-            submissionState.result = PORTAL_INTERNAL_ERROR;
-            submissionState.details = "Failed to save concrete build state";
-            server.send(500, "text/html", buildResultHtml(submissionState.details));
+            abortSubmission(submissionState, server, "Failed to save concrete build state");
             return;
         }
 
@@ -299,10 +298,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
             case BuildState::NY_METRO_BY_STATION: {
                 const String stationValue = server.arg("stationId");
                 if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN)) {
-                    submissionState.finished = true;
-                    submissionState.result = PORTAL_VALIDATION_ERROR;
-                    submissionState.details = "Station ID is required";
-                    server.send(400, "text/html", buildResultHtml(submissionState.details));
+                    rejectSubmission(server, "Station ID is required");
                     return;
                 }
 
@@ -318,10 +314,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
 
                 size_t pairCount = parseLinePairs(server, stationStorage, lineStorage, stationPtrs, linePtrs, &errorDetails);
                 if (pairCount == 0) {
-                    submissionState.finished = true;
-                    submissionState.result = PORTAL_VALIDATION_ERROR;
-                    submissionState.details = errorDetails;
-                    server.send(400, "text/html", buildResultHtml(submissionState.details));
+                    rejectSubmission(server, errorDetails);
                     return;
                 }
 
@@ -337,10 +330,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal() {
         }
 
         if (!saveBuildInfoOk) {
-            submissionState.finished = true;
-            submissionState.result = PORTAL_INTERNAL_ERROR;
-            submissionState.details = "Failed to save build info";
-            server.send(500, "text/html", buildResultHtml(submissionState.details));
+            abortSubmission(submissionState, server, "Failed to save build info");
             return;
         }
 
