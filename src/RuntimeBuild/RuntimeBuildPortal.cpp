@@ -17,6 +17,31 @@ constexpr const char* kApSsid = "Bus-404-Found-Setup";
 // Prefix for the generated WPA2 passphrase; the MAC suffix is appended to it.
 constexpr const char* kApPasswordPrefix = "bus";
 
+constexpr uint16_t kHttpPort = 80;
+constexpr uint16_t kDnsPort = 53;
+
+// Two separate settle points: after tearing down any prior STA connection, and
+// after the AP+STA mode switch. Same duration today, but they are not the same
+// wait, so changing one should not silently change the other.
+constexpr unsigned long kRadioDisconnectSettleMs = 100UL;
+constexpr unsigned long kModeChangeSettleMs = 100UL;
+
+// softAPIP() briefly reports 0.0.0.0 after softAP() returns; how long to wait for
+// the real address, and how often to re-check.
+constexpr unsigned long kApIpReadyTimeoutMs = 3000UL;
+constexpr unsigned long kApIpPollMs = 50UL;
+
+// Yield between service passes so the portal loop does not starve WiFi/system tasks.
+constexpr unsigned long kPortalLoopTickMs = 10UL;
+
+// Poll interval while waiting on the STA join.
+constexpr unsigned long kStaPollIntervalMs = 200UL;
+
+// Covers the result page's fixed markup plus a typical message, so the String
+// does not reallocate while being assembled. Only an optimisation: a longer
+// message still grows it.
+constexpr size_t kResultHtmlReserveBytes = 512;
+
 // How long to keep the AP up with nobody associated.
 constexpr unsigned long kNoClientTimeoutMs = 40000UL;
 
@@ -65,7 +90,7 @@ bool tryStaConnect(const char* ssid, const char* password, unsigned long timeout
 
     unsigned long start = millis();
     while (WiFi.status() != WL_CONNECTED && (millis() - start) < timeoutMs) {
-        delay(200);
+        delay(kStaPollIntervalMs);
     }
 
     return WiFi.status() == WL_CONNECTED;
@@ -171,7 +196,7 @@ LineTargets parseLinePairs(WebServer& server) {
 
 String buildResultHtml(const char* message) {
     String html;
-    html.reserve(512);
+    html.reserve(kResultHtmlReserveBytes);
     html += "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
     html += "<title>Runtime Build Result</title></head><body style='font-family:Segoe UI,Arial,sans-serif;padding:24px;background:#f4f6fb;'>";
     html += "<h2>";
@@ -430,10 +455,10 @@ bool startProvisioningAp(String& outPassword, IPAddress& outIp) {
     // reconnect attempts that would fight over the radio channel.
     WiFi.setAutoReconnect(false);
     WiFi.disconnect(false);
-    delay(100);
+    delay(kRadioDisconnectSettleMs);
 
     WiFi.mode(WIFI_AP_STA);
-    delay(100);  // Let the mode transition settle before starting the AP.
+    delay(kModeChangeSettleMs);
 
     outPassword = makeApPassword();
     if (!WiFi.softAP(kApSsid, outPassword.c_str())) {
@@ -445,8 +470,8 @@ bool startProvisioningAp(String& outPassword, IPAddress& outIp) {
     // Wait until the interface has its real address before handing it to the
     // DNS server, otherwise the wildcard redirect points at 0.0.0.0.
     const unsigned long ipWait = millis();
-    while ((outIp = WiFi.softAPIP()) == IPAddress(0, 0, 0, 0) && millis() - ipWait < 3000) {
-        delay(50);
+    while ((outIp = WiFi.softAPIP()) == IPAddress(0, 0, 0, 0) && millis() - ipWait < kApIpReadyTimeoutMs) {
+        delay(kApIpPollMs);
     }
 
     if (outIp == IPAddress(0, 0, 0, 0)) {
@@ -482,7 +507,7 @@ void runPortalLoop(WebServer& server, DNSServer& dnsServer, SubmissionState& sub
             break;
         }
 
-        delay(10);
+        delay(kPortalLoopTickMs);
     }
 }
 
@@ -490,7 +515,7 @@ void runPortalLoop(WebServer& server, DNSServer& dnsServer, SubmissionState& sub
 
 RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
     DNSServer dnsServer;
-    WebServer server(80);
+    WebServer server(kHttpPort);
     SubmissionState submissionState = {false, RuntimeBuildPortalResult::InternalError, "Internal error"};
 
     if (!LittleFS.begin(false)) {
@@ -505,7 +530,7 @@ RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
         return RuntimeBuildPortalResult::InternalError;
     }
 
-    dnsServer.start(53, "*", apIp);
+    dnsServer.start(kDnsPort, "*", apIp);
     registerRoutes(server, apIp, submissionState);
 
     server.begin();
