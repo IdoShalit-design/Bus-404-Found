@@ -27,6 +27,11 @@ enum RuntimeBuildPortalResult {
  *
  * Rejected submissions are not terminal: the portal answers with HTTP 400 and keeps
  * serving so the user can correct the form and resubmit.
+ *
+ * @return How the session ended. Callers are expected to act on this: the two
+ *         timeouts mean the saved config still stands and boot should continue,
+ *         while the failure results should be surfaced to the user, since the
+ *         device will otherwise look stalled with no explanation.
  */
 RuntimeBuildPortalResult runRuntimeBuildPortal();
 

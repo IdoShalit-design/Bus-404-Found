@@ -34,6 +34,25 @@ const char* buildStateToString(BuildState state) {
     }
 }
 
+// Returns what the panel should say about a finished portal session, or nullptr
+// when the outcome needs no explanation and boot should continue quietly. The
+// two timeouts are normal: nobody provisioned, so the saved config still stands.
+const char* portalResultToDisplayMessage(RuntimeBuildPortalResult result) {
+    switch (result) {
+        case PORTAL_SAVE_AND_CONNECT_OK:
+        case PORTAL_TIMEOUT_NO_CLIENT:
+        case PORTAL_TIMEOUT_NO_SUBMIT:
+            return nullptr;
+        case PORTAL_SAVE_OK_CONNECT_FAILED:
+            // Explains the silence while connectWifi() works through its retries.
+            return "WiFi Connect Failed";
+        case PORTAL_INTERNAL_ERROR:
+            return "Setup Portal Failed";
+        default:
+            return "Setup Portal Error";
+    }
+}
+
 const char* wifiFailureToDisplayMessage(wl_status_t status) {
     switch (status) {
         case WL_NO_SSID_AVAIL:
@@ -73,8 +92,16 @@ void App::setup() {
 
     initDisplay();
 
-    RuntimeBuildPortalResult portalResult = runRuntimeBuildPortal();
+    const RuntimeBuildPortalResult portalResult = runRuntimeBuildPortal();
     Serial.printf("[Main] Runtime build portal result: %d\n", static_cast<int>(portalResult));
+
+    // A failed portal does not stop boot: the previously saved config may still
+    // be good. Surface the reason so a stalled-looking device is explainable,
+    // and let loadConfig() halt below if the config really is unusable.
+    const char* portalMessage = portalResultToDisplayMessage(portalResult);
+    if (portalMessage != nullptr) {
+        showMessage(portalMessage);
+    }
 
     // If SCREEN_DEBUG is enabled, run display tests and never return
     #if SCREEN_DEBUG
