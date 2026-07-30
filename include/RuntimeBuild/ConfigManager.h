@@ -4,7 +4,6 @@
 #include <stddef.h>
 
 #include "RuntimeBuild/Builder.h"
-#include "Structs.h"
 
 /**
  * @brief Loads the persisted build state from /build_state.json.
@@ -78,20 +77,5 @@ bool saveBuildInfoStationConfig(const char* stationId);
  * @return true when file write succeeds, false otherwise.
  */
 bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* lines, size_t targetCount);
-
-/**
- * @brief Persists USE_CURRENT_BUILD metadata to /build_info.json.
- *
- * @return true when file write succeeds, false otherwise.
- */
-bool saveBuildInfoCurrentConfig();
-
-/**
- * @brief Backward-compatible writer that maps exactly three targets to line-mode build info.
- *
- * @param targets Fixed-size array of 3 BusTarget entries.
- * @return true when file write succeeds, false otherwise.
- */
-bool saveBusTargetsConfig(const BusTarget (&targets)[3]);
 
 #endif // CONFIG_MANAGER_H

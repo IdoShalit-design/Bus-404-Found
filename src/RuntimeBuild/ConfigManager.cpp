@@ -263,28 +263,3 @@ bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* 
     return writeBuildInfoDoc(doc);
 }
 
-bool saveBuildInfoCurrentConfig() {
-    if (!ensureLittleFsReady()) {
-        return false;
-    }
-
-    StaticJsonDocument<256> doc;
-    doc["version"] = kConfigVersion;
-    doc["useCurrentBuild"] = true;
-    return writeBuildInfoDoc(doc);
-}
-
-bool saveBusTargetsConfig(const BusTarget (&targets)[3]) {
-    const char* stationIds[3] = {
-        targets[0].stationId,
-        targets[1].stationId,
-        targets[2].stationId,
-    };
-    const char* lines[3] = {
-        targets[0].line,
-        targets[1].line,
-        targets[2].line,
-    };
-
-    return saveBuildInfoLinesConfig(stationIds, lines, 3);
-}
