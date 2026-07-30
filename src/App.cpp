@@ -7,6 +7,7 @@
 
 #include "Display/HUB75Display.h"
 #include "NetworkManager.h"
+#include "RuntimeBuild/BuildStateNames.h"
 #include "RuntimeBuild/Builder.h"
 #include "RuntimeBuild/RuntimeBuildPortal.h"
 #include "TimeManager.h"
@@ -19,19 +20,11 @@ constexpr unsigned long kWifiReconnectTimeoutMs = 10000UL;
 constexpr unsigned long kHeapReportIntervalMs = 60000UL;
 constexpr unsigned long kHaltPollMs = 1000UL;
 
-const char* buildStateToString(BuildState state) {
-    switch (state) {
-        case BuildState::BUS_BY_STATION:
-            return "BUS_BY_STATION";
-        case BuildState::BUS_BY_LINES:
-            return "BUS_BY_LINES";
-        case BuildState::NY_METRO_BY_STATION:
-            return "NY_METRO_BY_STATION";
-        case BuildState::USE_CURRENT_BUILD:
-            return "USE_CURRENT_BUILD";
-        default:
-            return "UNKNOWN";
-    }
+// Log-safe wrapper: buildStateToString returns nullptr for an unrecognised
+// value, which is the right answer when persisting but not when printing.
+const char* buildStateForLog(BuildState state) {
+    const char* name = buildStateToString(state);
+    return name != nullptr ? name : "UNKNOWN";
 }
 
 // Returns what the panel should say about a finished portal session, or nullptr
@@ -161,8 +154,8 @@ void App::loadConfig() {
     _runtimeConfigLoaded = true;
 
     Serial.printf("[Config] Requested state: %s, concrete state: %s\n",
-                  buildStateToString(_runtimeConfig.buildState),
-                  buildStateToString(_runtimeConfig.concreteBuildState));
+                  buildStateForLog(_runtimeConfig.buildState),
+                  buildStateForLog(_runtimeConfig.concreteBuildState));
     Serial.printf("[Config] Loaded %d targets\n", _runtimeConfig.bus.targetCount);
 }
 

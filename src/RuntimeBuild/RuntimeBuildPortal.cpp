@@ -6,6 +6,7 @@
 #include <WiFi.h>
 
 #include "Config.h"
+#include "RuntimeBuild/BuildStateNames.h"
 #include "RuntimeBuild/ConfigLoader.h"
 #include "RuntimeBuild/ConfigManager.h"
 
@@ -68,27 +69,6 @@ bool tryStaConnect(const char* ssid, const char* password, unsigned long timeout
     }
 
     return WiFi.status() == WL_CONNECTED;
-}
-
-bool parseBuildStateFromForm(const String& modeValue, BuildState& outState) {
-    if (modeValue == "BUS_BY_STATION") {
-        outState = BuildState::BUS_BY_STATION;
-        return true;
-    }
-    if (modeValue == "BUS_BY_LINES") {
-        outState = BuildState::BUS_BY_LINES;
-        return true;
-    }
-    if (modeValue == "NY_METRO_BY_STATION") {
-        outState = BuildState::NY_METRO_BY_STATION;
-        return true;
-    }
-    if (modeValue == "USE_CURRENT_BUILD") {
-        outState = BuildState::USE_CURRENT_BUILD;
-        return true;
-    }
-
-    return false;
 }
 
 // True when a USE_CURRENT_BUILD selection would actually resolve on the next
@@ -251,7 +231,8 @@ bool applyStep(WebServer& server, SubmissionState& submissionState, const StepRe
 }
 
 StepResult selectBuildState(WebServer& server, BuildState& outState) {
-    if (!parseBuildStateFromForm(readTrimmedArg(server, "state"), outState)) {
+    // The form posts the same names that are persisted in build_state.json.
+    if (!parseBuildState(readTrimmedArg(server, "state").c_str(), outState)) {
         return stepRejected("Invalid activation mode");
     }
 

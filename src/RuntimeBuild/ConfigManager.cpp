@@ -5,6 +5,8 @@
 #include <LittleFS.h>
 #include <string.h>
 
+#include "RuntimeBuild/BuildStateNames.h"
+
 namespace {
 
 const char* kBuildStateFile = "/build_state.json";
@@ -12,46 +14,6 @@ const char* kLastConcreteBuildStateFile = "/last_concrete_build_state.json";
 const char* kWifiCredentialsFile = "/wifi_credentials.json";
 const char* kBuildInfoFile = "/build_info.json";
 constexpr uint8_t kConfigVersion = 1;
-
-const char* buildStateToString(BuildState state) {
-    switch (state) {
-        case BuildState::BUS_BY_STATION:
-            return "BUS_BY_STATION";
-        case BuildState::BUS_BY_LINES:
-            return "BUS_BY_LINES";
-        case BuildState::NY_METRO_BY_STATION:
-            return "NY_METRO_BY_STATION";
-        case BuildState::USE_CURRENT_BUILD:
-            return "USE_CURRENT_BUILD";
-        default:
-            return nullptr;
-    }
-}
-
-bool parseBuildState(const char* stateText, BuildState& outState) {
-    if (stateText == nullptr) {
-        return false;
-    }
-
-    if (strcmp(stateText, "BUS_BY_STATION") == 0) {
-        outState = BuildState::BUS_BY_STATION;
-        return true;
-    }
-    if (strcmp(stateText, "BUS_BY_LINES") == 0) {
-        outState = BuildState::BUS_BY_LINES;
-        return true;
-    }
-    if (strcmp(stateText, "NY_METRO_BY_STATION") == 0) {
-        outState = BuildState::NY_METRO_BY_STATION;
-        return true;
-    }
-    if (strcmp(stateText, "USE_CURRENT_BUILD") == 0) {
-        outState = BuildState::USE_CURRENT_BUILD;
-        return true;
-    }
-
-    return false;
-}
 
 bool ensureLittleFsReady() {
     if (LittleFS.begin(false)) {
