@@ -252,7 +252,8 @@ void rejectSubmission(WebServer& server, const char* details) {
 
 // Ends the portal session. Reserved for failures the user cannot recover from by
 // resubmitting, such as a flash write failure.
-void abortSubmission(SubmissionState& submissionState, WebServer& server, const char* details) {
+void abortSubmission(SubmissionState& submissionState, WebServer& server,
+     const char* details) {
     submissionState.finished = true;
     submissionState.result = RuntimeBuildPortalResult::InternalError;
     submissionState.details = details;
@@ -407,6 +408,7 @@ void finishWithStaConnect(SubmissionState& submissionState, const String& ssid, 
 }
 
 void handleSubmit(WebServer& server, SubmissionState& submissionState) {
+    // Placeholder, not a default: BuildState has no "unset" member
     BuildState selectedState = BuildState::BUS_BY_STATION;
     if (!applyStep(server, submissionState, selectBuildState(server, selectedState))) {
         return;
@@ -520,7 +522,9 @@ bool startProvisioningAp(String& outPassword, IPAddress& outIp) {
 }
 
 // Services the portal until a submission completes or a timeout expires.
-void runPortalLoop(WebServer& server, DNSServer& dnsServer, SubmissionState& submissionState) {
+void runPortalLoop(WebServer& server, DNSServer& dnsServer,
+     SubmissionState& submissionState, PortalNotifyFn notify) {
+    
     const unsigned long sessionStart = millis();
     unsigned long idleStart = sessionStart;
 
@@ -574,13 +578,12 @@ RuntimeBuildPortalResult runRuntimeBuildPortal(PortalNotifyFn notify) {
     Serial.printf("[RuntimeBuildPortal] AP started. SSID: %s Password: %s IP: %s\n", kApSsid,
                   apPassword.c_str(), apIp.toString().c_str());
 
-    // The AP is WPA2-protected, so the passphrase has to reach the user somehow;
-    // the panel is the only channel they are guaranteed to have.
-    if (notify) {
-        notify((String("Setup PW ") + apPassword).c_str());
-    }
+    
+    notify((String("Connect to wifi network: Bus-404-Found-Setup \n PW ") + 
+            apPassword).c_str());
 
-    runPortalLoop(server, dnsServer, submissionState);
+
+    runPortalLoop(server, dnsServer, submissionState, notify);
 
     server.stop();
     dnsServer.stop();

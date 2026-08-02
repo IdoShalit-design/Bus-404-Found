@@ -30,32 +30,6 @@ enum class RuntimeBuildPortalResult {
  * printed in a manual and the panel is the only channel the user is guaranteed to
  * have. The caller supplies that channel here.
  *
- * ## Why a callback and not an IRenderer*
- *
- * Least privilege. IRenderer exposes init(), render(), clear(), setBrightness()
- * and showMessage(); the portal needs exactly one of those. Handing over the whole
- * interface would let this code re-init the panel mid-provisioning or render bus
- * arrivals over the setup screen -- bugs that are worth making unrepresentable
- * rather than merely discouraged. A one-argument callback is the narrowest type
- * that still expresses "emit a line of text", so no other capability leaks in.
- *
- * Passing a callback also keeps this header independent of the display layer, so
- * the portal stays reusable on a device whose status channel is not an IRenderer
- * at all -- a serial console or an OLED would satisfy this signature unchanged.
- *
- * ## Cost
- *
- * std::function is type-erased, so it costs one indirect call per invocation --
- * paid once per boot here, on a path that already waits up to 40s for a phone. The
- * canonical caller passes a lambda capturing only `this` (4 bytes on this target),
- * which fits std::function's small-object buffer, so there is no heap allocation.
- *
- * ## Contract for implementers
- *
- * `message` is valid only for the duration of the call. Callers may build it from
- * a temporary, so an implementation that needs the text later must copy the bytes,
- * not store the pointer. Implementations should return promptly: the portal is
- * mid-startup with an AP up and a DNS server running.
  */
 using PortalNotifyFn = std::function<void(const char* message)>;
 

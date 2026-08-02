@@ -28,17 +28,23 @@ const char* buildStateForLog(BuildState state) {
 }
 
 // Returns what the panel should say about a finished portal session, or nullptr
-// when the outcome needs no explanation and boot should continue quietly. The
-// two timeouts are normal: nobody provisioned, so the saved config still stands.
+// when the outcome needs no explanation. Either way the caller must repaint: the
+// panel is still showing the AP passphrase, which is stale the moment the portal
+// exits. The two timeouts are normal -- nobody provisioned, so the saved config
+// still stands and there is nothing to report.
 const char* portalResultToDisplayMessage(RuntimeBuildPortalResult result) {
     switch (result) {
         case RuntimeBuildPortalResult::SaveAndConnectOk:
+            // Confirms the submission landed. Nothing else repaints until the
+            // first fetchAndRender(), several boot stages later.
+            return "Changes Saved";
         case RuntimeBuildPortalResult::TimeoutNoClient:
         case RuntimeBuildPortalResult::TimeoutNoSubmit:
             return nullptr;
         case RuntimeBuildPortalResult::SaveOkConnectFailed:
-            // Explains the silence while connectWifi() works through its retries.
-            return "WiFi Connect Failed";
+            // Saved is the part the user needs to know; the Wi-Fi half explains
+            // the silence while connectWifi() works through its retries.
+            return "Saved - No WiFi";
         case RuntimeBuildPortalResult::InternalError:
             return "Setup Portal Failed";
     }
@@ -97,10 +103,13 @@ void App::setup() {
     // A failed portal does not stop boot: the previously saved config may still
     // be good. Surface the reason so a stalled-looking device is explainable,
     // and let loadConfig() halt below if the config really is unusable.
+    //
+    // Repaint unconditionally. The panel is still showing the AP passphrase, and
+    // the next draw is the first fetchAndRender() -- four boot stages away, none
+    // of which draw anything on the success path. Leaving it up would strand a
+    // stale, and now useless, Wi-Fi passphrase on the display.
     const char* portalMessage = portalResultToDisplayMessage(portalResult);
-    if (portalMessage != nullptr) {
-        showMessage(portalMessage);
-    }
+    showMessage(portalMessage != nullptr ? portalMessage : "Loading...");
 
     // If SCREEN_DEBUG is enabled, run display tests and never return
     #if SCREEN_DEBUG
