@@ -13,6 +13,56 @@
 
 #include "Fetchers/CurlBusFetcherByLine.h"
 
+namespace {
+
+// ETA format: "2026-01-03 21:54:00+02:00"
+//              0123456789|11111
+//                        |01234
+// HH:MM sits at offsets 11..15, so anything shorter than 16 chars is unusable.
+constexpr size_t kEtaTimeOffset = 11;
+constexpr size_t kEtaTimeLength = 5;
+constexpr size_t kEtaMinLength = 16;
+
+constexpr int kMinutesPerDay = 24 * 60;
+// An ETA that looks more than 12h in the past is really tomorrow's clock time
+// seen from before midnight, not a stale arrival.
+constexpr int kMidnightWrapThresholdMin = -12 * 60;
+
+bool etaHasTime(const char* eta) {
+    return eta != nullptr && strlen(eta) >= kEtaMinLength;
+}
+
+void copyEtaTime(char* dst, const char* eta) {
+    strncpy(dst, eta + kEtaTimeOffset, kEtaTimeLength);
+    dst[kEtaTimeLength] = '\0';
+}
+
+/**
+ * @brief Minutes from now until the given ETA, or -1 when the clock is unset.
+ *
+ * Subtracts one extra minute so a bus that is arriving right now reads as 0
+ * rather than "1 min". Clamps at 0 only after unwrapping midnight, so a
+ * just-past-midnight ETA is not flattened to "arriving now".
+ */
+int computeMinutesRemaining(const char* eta) {
+    int etaHour = (eta[kEtaTimeOffset] - '0') * 10 + (eta[kEtaTimeOffset + 1] - '0');
+    int etaMin = (eta[kEtaTimeOffset + 3] - '0') * 10 + (eta[kEtaTimeOffset + 4] - '0');
+
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        return -1;  // Time not available
+    }
+
+    int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+    int delta = (etaHour * 60 + etaMin) - nowMinutes - 1;
+    if (delta < kMidnightWrapThresholdMin) {
+        delta += kMinutesPerDay;
+    }
+    return max(delta, 0);
+}
+
+}  // namespace
+
 // =========================================
 // Constructor & Destructor
 // =========================================
@@ -51,10 +101,12 @@ CurlBusFetcherByLine::~CurlBusFetcherByLine() {
 // =========================================
 
 /**
- * @brief Fetches and updates the ETA for a specific bus line at a station.
- * 
+ * @brief Fetches the next two arrivals of a specific bus line at a station.
+ *
  * @param bus Reference to BusTarget containing stationId and line to search for.
- *            On success, bus.last_known_ETA is updated with "HH:MM" format.
+ *            On success, bus.last_known_ETA holds the next arrival in "HH:MM"
+ *            format, and bus.next_ETA the one after it when the station lists a
+ *            second arrival for the line (bus.has_next_arrival says whether it does).
  * @return true if the bus line was found and ETA was updated.
  * @return false if HTTP request failed, parsing failed, or line not found.
  */
@@ -156,65 +208,61 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
     }
     
     // =========================================
-    // Step 5: Search for matching bus line
+    // Step 5: Collect the next two arrivals of the matching bus line
     // =========================================
+    // The API lists visits in arrival order, so the first match is the next
+    // arrival and the second match the one after it.
+    int matchCount = 0;
+
     for (JsonObject visit : visits) {
         const char* lineName = visit["line_name"];
-        
-        if (lineName && strcmp(lineName, bus.line) == 0) {
-            // Found matching line - extract destination name and ETA
+        if (lineName == nullptr || strcmp(lineName, bus.line) != 0) {
+            continue;
+        }
+
+        const char* eta = visit["eta"];
+        if (!etaHasTime(eta)) {
+            continue;
+        }
+
+        if (matchCount == 0) {
+            // Destination comes from the next arrival; the follow-up serves the
+            // same line, so it would only repeat it.
             const char* destName = visit["static_info"]["route"]["destination"]["name"]["EN"];
             if (destName) {
                 strncpy(bus.destination, destName, sizeof(bus.destination) - 1);
                 bus.destination[sizeof(bus.destination) - 1] = '\0';
             }
 
-            const char* eta = visit["eta"];
-            
-            if (eta && strlen(eta) >= 16) {
-                // ETA format: "2026-01-03 21:54:00+02:00"
-                //              0123456789|11111
-                //                        |01234
-                // Extract HH:MM from character positions 11-15
-                strncpy(bus.last_known_ETA, eta + 11, 5);
-                bus.last_known_ETA[5] = '\0';  // Null-terminate the string
-                
-                // Check if real-time (has GPS location data)
-                bus.is_realtime = !visit["location"].isNull();
-                
-                // =========================================
-                // Calculate minutes remaining
-                // =========================================
-                // Parse ETA hours and minutes from string
-                int etaHour = (eta[11] - '0') * 10 + (eta[12] - '0');
-                int etaMin  = (eta[14] - '0') * 10 + (eta[15] - '0');
-                
-                // Get current local time
-                struct tm timeinfo;
-                if (getLocalTime(&timeinfo)) {
-                    int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-                    int etaMinutes = etaHour * 60 + etaMin;
-                    bus.minutes_remaining = max(etaMinutes - nowMinutes - 1,0); // to avoid showing "1 min" when bus is actually arriving now (0 min)
-                    
-                    // Handle midnight crossing (e.g., now=23:50, eta=00:10)
-                    if (bus.minutes_remaining < -720) {  // More than 12 hours negative
-                        bus.minutes_remaining += 1440;   // Add 24 hours
-                    }
-                } else {
-                    bus.minutes_remaining = -1;  // Time not available
-                }
-                
-                #ifdef DEBUG
-                Serial.printf("[CurlBusFetcherByLine] Line %s at station %s: ETA %s (%d min)\n", 
-                              bus.line, stationId, bus.last_known_ETA, bus.minutes_remaining);
-                #endif
-                return true;
-            }
+            copyEtaTime(bus.last_known_ETA, eta);
+            // Real-time when the visit carries GPS location data
+            bus.is_realtime = !visit["location"].isNull();
+            bus.minutes_remaining = computeMinutesRemaining(eta);
+            bus.has_next_arrival = false;
+            matchCount = 1;
+            continue;
         }
+
+        copyEtaTime(bus.next_ETA, eta);
+        bus.next_is_realtime = !visit["location"].isNull();
+        bus.next_minutes_remaining = computeMinutesRemaining(eta);
+        bus.has_next_arrival = true;
+        matchCount = 2;
+        break;
     }
-    
-    // Line not found in any of the visits
-    Serial.printf("[CurlBusFetcherByLine] Line %s not found at station %s\n", bus.line, stationId);
-    return false;
+
+    if (matchCount == 0) {
+        // Line not found in any of the visits
+        Serial.printf("[CurlBusFetcherByLine] Line %s not found at station %s\n", bus.line, stationId);
+        return false;
+    }
+
+    #ifdef DEBUG
+    Serial.printf("[CurlBusFetcherByLine] Line %s at station %s: ETA %s (%d min), next %s (%d min)\n",
+                  bus.line, stationId, bus.last_known_ETA, bus.minutes_remaining,
+                  bus.has_next_arrival ? bus.next_ETA : "-",
+                  bus.has_next_arrival ? bus.next_minutes_remaining : -1);
+    #endif
+    return true;
 }
 

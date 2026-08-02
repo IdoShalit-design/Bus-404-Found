@@ -7,6 +7,11 @@
 
 namespace {
 
+// One load serves every row of a fetch cycle; half the fetch interval is long
+// enough for that burst of update() calls and short enough that the following
+// cycle always starts from a fresh station snapshot.
+constexpr unsigned long kArrivalCacheTtlMs = FETCH_INTERVAL_MS / 2;
+
 void copyBounded(char* dst, size_t dstSize, const char* src) {
     if (dst == nullptr || dstSize == 0) {
         return;
@@ -48,7 +53,8 @@ int computeMinutesRemaining(const char* eta) {
 CurlBusFetcherByStation::CurlBusFetcherByStation()
     : _doc(new DynamicJsonDocument(CURLBUS_JSON_BUFFER_SIZE)),
       _arrivalCount(0),
-      _nextArrivalIndex(0) {
+      _loadedAtMs(0),
+      _servedLineCount(0) {
     if (!_doc) {
         Serial.println("[CurlBusFetcherByStation] FATAL: Failed to allocate JSON buffer!");
     }
@@ -152,35 +158,81 @@ bool CurlBusFetcherByStation::loadNextArrivals(const char* stationId) {
         _arrivalCount++;
     }
 
-    _nextArrivalIndex = 0;
+    _servedLineCount = 0;
+    _loadedAtMs = millis();
     copyBounded(_currentStationId, sizeof(_currentStationId), stationId);
     return _arrivalCount > 0;
 }
 
+bool CurlBusFetcherByStation::isLineServed(const char* line) const {
+    for (size_t i = 0; i < _servedLineCount; i++) {
+        if (strcmp(_servedLines[i], line) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int CurlBusFetcherByStation::findUnservedArrivalIndex() const {
+    if (_servedLineCount >= kMaxServedLines) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < _arrivalCount; i++) {
+        if (!isLineServed(_arrivals[i].line)) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
 bool CurlBusFetcherByStation::update(BusTarget& bus) {
-    if (bus.stationId == nullptr || bus.stationId[0] == '\0') {
+    if (bus.stationId[0] == '\0') {
         return false;
     }
 
+    // Reload on a new station, once the snapshot ages out, or when every cached
+    // line has already been given to a row. The age check is what starts each
+    // fetch cycle fresh: rows are filled faster than the cache expires, so the
+    // first update() of a cycle reloads and the rest share that snapshot.
     const bool stationChanged = strcmp(_currentStationId, bus.stationId) != 0;
-    const bool cacheExhausted = _nextArrivalIndex >= _arrivalCount;
-    if (stationChanged || cacheExhausted) {
+    const bool cacheStale = (millis() - _loadedAtMs) >= kArrivalCacheTtlMs;
+    if (stationChanged || cacheStale || findUnservedArrivalIndex() < 0) {
         if (!loadNextArrivals(bus.stationId)) {
             return false;
         }
     }
 
-    if (_nextArrivalIndex >= _arrivalCount) {
+    const int index = findUnservedArrivalIndex();
+    if (index < 0) {
         return false;
     }
 
-    const ArrivalData& arrival = _arrivals[_nextArrivalIndex++];
     // Copy, don't alias: _arrivals is refilled in place by loadNextArrivals().
+    const ArrivalData& arrival = _arrivals[index];
     copyBounded(bus.line, sizeof(bus.line), arrival.line);
     copyBounded(bus.destination, sizeof(bus.destination), arrival.destination);
     copyBounded(bus.last_known_ETA, sizeof(bus.last_known_ETA), arrival.eta);
     bus.is_realtime = arrival.is_realtime;
     bus.minutes_remaining = arrival.minutes_remaining;
     bus.no_data = false;
+
+    // The same line's following arrival shares this row instead of consuming
+    // the next one, so every row shows a different line.
+    bus.has_next_arrival = false;
+    for (size_t i = static_cast<size_t>(index) + 1; i < _arrivalCount; i++) {
+        if (strcmp(_arrivals[i].line, arrival.line) != 0) {
+            continue;
+        }
+
+        copyBounded(bus.next_ETA, sizeof(bus.next_ETA), _arrivals[i].eta);
+        bus.next_is_realtime = _arrivals[i].is_realtime;
+        bus.next_minutes_remaining = _arrivals[i].minutes_remaining;
+        bus.has_next_arrival = true;
+        break;
+    }
+
+    copyBounded(_servedLines[_servedLineCount], sizeof(_servedLines[_servedLineCount]), arrival.line);
+    _servedLineCount++;
     return true;
 }

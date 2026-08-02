@@ -167,6 +167,29 @@ void HUB75Display::drawIcon(int x, int y, uint16_t color, const uint8_t* bitmap)
     }
 }
 
+uint16_t HUB75Display::drawArrivalMinutes(int x, int y, int minutes, bool isRealtime) {
+    const uint16_t color = isRealtime ? COLOR_REALTIME : COLOR_SCHEDULED;
+
+    if (minutes <= 0) {
+        // Bus is arriving now (or the clock is unset, which reads the same way)
+        drawIcon(x, y, color, ARRIVING_ICON);
+        return color;
+    }
+
+    _matrix->setTextColor(color);
+    _matrix->setCursor(x, y + 1);
+    _matrix->printf("%d", minutes);
+
+    // draw: '
+    if (minutes < 10) {
+        int currentX = _matrix->getCursorX();
+        _matrix->drawPixel(currentX + 1, y + 1, color);
+        _matrix->drawPixel(currentX + 1, y + 2, color);
+    }
+
+    return color;
+}
+
 void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     int y = row * ROW_HEIGHT;
 
@@ -187,34 +210,30 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     _matrix->setCursor(XCOL_DEST, y + 1);
     _matrix->print(destStr);
 
-    // --- Minutes remaining ---
-    // No data: red "--"
-    // Positive minutes: green (realtime) or yellow (scheduled)
+    // --- Minutes remaining, next two arrivals side by side ---
+    // No data: red "-"
+    // Otherwise each arrival gets its own colour: green (realtime) or yellow
+    // (scheduled), so the two can disagree on the same row.
     uint16_t minutesColor;
-    
+
     if (target.no_data) {
         minutesColor = COLOR_NO_DATA;
         _matrix->setTextColor(minutesColor);
         _matrix->setCursor(XCOL_MINUTES, y + 1);
         _matrix->print("-");
-    } else if(target.minutes_remaining > 0) {
-        minutesColor  = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
-        _matrix->setTextColor(minutesColor);
-        _matrix->setCursor(XCOL_MINUTES, y + 1);
-        _matrix->printf("%d", target.minutes_remaining);
-    }
-    else{
-        // minutes_remaining == 0: bus is arriving now
-        minutesColor = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
-        drawIcon(XCOL_MINUTES, y, minutesColor, ARRIVING_ICON);
-    }
-    
-    //draw: '
-    if(target.minutes_remaining > 0 && target.minutes_remaining < 10 && !target.no_data) {
-        int currentX = _matrix->getCursorX();
-        _matrix->drawPixel(currentX + 1, y + 1, minutesColor);
-        _matrix->drawPixel(currentX + 1, y + 2, minutesColor);
+    } else {
+        minutesColor = drawArrivalMinutes(XCOL_MINUTES, y, target.minutes_remaining,
+                                          target.is_realtime);
+
+        // A station may list only one upcoming arrival for this line; leave the
+        // second column empty rather than repeating the first.
+        if (target.has_next_arrival) {
+            drawArrivalMinutes(XCOL_MINUTES_NEXT, y, target.next_minutes_remaining,
+                               target.next_is_realtime);
+        }
     }
 
+    // The bus symbol belongs to the row, not to an arrival: drawn once, in the
+    // colour of the arrival that comes first.
     drawIcon(XCOL_IMAGE_START, y, minutesColor, BUS_ICON);
 }

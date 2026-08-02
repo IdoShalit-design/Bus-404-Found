@@ -23,6 +23,10 @@ void resetArrivalState(BusTarget& target) {
     target.last_known_ETA[0] = '\0';
     target.minutes_remaining = 0;
     target.no_data = false;
+    target.next_is_realtime = false;
+    target.next_ETA[0] = '\0';
+    target.next_minutes_remaining = 0;
+    target.has_next_arrival = false;
 }
 
 void copyBounded(char* dst, size_t dstSize, const char* src) {

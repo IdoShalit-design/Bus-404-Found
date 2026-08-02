@@ -285,11 +285,15 @@ void App::fetchAndRender() {
         targets[i].no_data = !success;
 
         if (success) {
-            Serial.printf("Line %s: %s (%d min) %s\n",
+            Serial.printf("Line %s: %s (%d min) %s | next: %s (%d min) %s\n",
                           targets[i].line,
                           targets[i].last_known_ETA,
                           targets[i].minutes_remaining,
-                          targets[i].is_realtime ? "[LIVE]" : "[SCHED]");
+                          targets[i].is_realtime ? "[LIVE]" : "[SCHED]",
+                          targets[i].has_next_arrival ? targets[i].next_ETA : "--",
+                          targets[i].has_next_arrival ? targets[i].next_minutes_remaining : -1,
+                          !targets[i].has_next_arrival ? "" :
+                              (targets[i].next_is_realtime ? "[LIVE]" : "[SCHED]"));
         } else {
             Serial.printf("Line %s: No data\n", targets[i].line);
         }

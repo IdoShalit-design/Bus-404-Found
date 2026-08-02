@@ -46,16 +46,20 @@
 // --- Layout: X cursor positions per row (depends on number of panels) ---
 // 2-panel layout (128px wide): generous spacing
 // 1-panel layout (64px wide):  compact spacing
+// A row shows two arrivals, so the minutes zone is two columns wide: the next
+// arrival first, then the one after it, each 12px (two digits) plus a gap.
 #if PANEL_CHAIN == 2
-    #define XCOL_LINE_NUM    0    // Bus line number (far left)
-    #define XCOL_DEST        14   // Destination text
-    #define XCOL_MINUTES     110   // Minutes remaining
-    #define XCOL_IMAGE_START 122  // Reserved for image (last 12px)
+    #define XCOL_LINE_NUM      0    // Bus line number (far left)
+    #define XCOL_DEST          14   // Destination text
+    #define XCOL_MINUTES       96   // Minutes to the next arrival
+    #define XCOL_MINUTES_NEXT  110  // Minutes to the arrival after that
+    #define XCOL_IMAGE_START   122  // Reserved for image (last 6px)
 #else
-    #define XCOL_LINE_NUM    0    // Bus line number (far left)
-    #define XCOL_DEST        14   // Destination text
-    #define XCOL_MINUTES     48   // Minutes remaining
-    #define XCOL_IMAGE_START 58   // Reserved for image (last 6px)
+    #define XCOL_LINE_NUM      0    // Bus line number (far left)
+    #define XCOL_DEST          14   // Destination text
+    #define XCOL_MINUTES       34   // Minutes to the next arrival
+    #define XCOL_MINUTES_NEXT  46   // Minutes to the arrival after that
+    #define XCOL_IMAGE_START   58   // Reserved for image (last 6px)
 #endif
 
 // GFX default font at textSize(1): 6px per character (5px glyph + 1px spacing)
@@ -118,6 +122,16 @@ private:
      * @param row The row index (0-based) for vertical positioning.
      */
     void drawBusRow(const BusTarget& target, int row);
+
+    /**
+     * @brief Draws one arrival's minutes (or the arriving-now icon at zero).
+     * @param x       Left X pixel of this arrival's column.
+     * @param y       Top Y pixel of the row.
+     * @param minutes Minutes remaining; <= 0 renders the arriving-now icon.
+     * @param isRealtime True for live GPS data, false for scheduled.
+     * @return The colour the arrival was drawn in, so the caller can match it.
+     */
+    uint16_t drawArrivalMinutes(int x, int y, int minutes, bool isRealtime);
 
     /**
      * @brief Draws a monochrome bitmap icon at (x, y) in the given color.
