@@ -213,11 +213,26 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
     // The API lists visits in arrival order, so the first match is the next
     // arrival and the second match the one after it.
     int matchCount = 0;
+    bool destinationSeen = false;
 
     for (JsonObject visit : visits) {
         const char* lineName = visit["line_name"];
         if (lineName == nullptr || strcmp(lineName, bus.line) != 0) {
             continue;
+        }
+
+        // Take the destination from the first visit of this line, whether or not
+        // its ETA turns out to be usable. The row is labelled by the line, not by
+        // an arrival: skipping this on an unusable ETA leaves the destination
+        // blank forever for a line whose visits never carry a parseable eta,
+        // which reads as a broken row rather than as a missing arrival.
+        if (!destinationSeen) {
+            const char* destName = visit["static_info"]["route"]["destination"]["name"]["EN"];
+            if (destName) {
+                strncpy(bus.destination, destName, sizeof(bus.destination) - 1);
+                bus.destination[sizeof(bus.destination) - 1] = '\0';
+                destinationSeen = true;
+            }
         }
 
         const char* eta = visit["eta"];
@@ -226,14 +241,6 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
         }
 
         if (matchCount == 0) {
-            // Destination comes from the next arrival; the follow-up serves the
-            // same line, so it would only repeat it.
-            const char* destName = visit["static_info"]["route"]["destination"]["name"]["EN"];
-            if (destName) {
-                strncpy(bus.destination, destName, sizeof(bus.destination) - 1);
-                bus.destination[sizeof(bus.destination) - 1] = '\0';
-            }
-
             copyEtaTime(bus.last_known_ETA, eta);
             // Real-time when the visit carries GPS location data
             bus.is_realtime = !visit["location"].isNull();
