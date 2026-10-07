@@ -26,9 +26,9 @@ enum class RuntimeBuildPortalResult {
  * @brief Shows a short line of text to whoever is standing at the device.
  *
  * The portal has no display of its own, but it must reach the person holding the
- * board: the AP passphrase is generated per-device from the MAC, so it cannot be
- * printed in a manual and the panel is the only channel the user is guaranteed to
- * have. The caller supplies that channel here.
+ * board: nothing else signals that the device is waiting in setup mode, which
+ * network to join, or where to point a browser once joined. The panel is the only
+ * channel the user is guaranteed to have, and the caller supplies it here.
  *
  */
 using PortalNotifyFn = std::function<void(const char* message)>;
@@ -45,9 +45,9 @@ using PortalNotifyFn = std::function<void(const char* message)>;
  * Rejected submissions are not terminal: the portal answers with HTTP 400 and keeps
  * serving so the user can correct the form and resubmit.
  *
- * @param notify Called with the AP credentials once the access point is up, so
- *               the user can join it. May be empty, in which case the
- *               credentials are only written to the serial log.
+ * @param notify Called with the network to join once the access point is up, and
+ *               again with the portal address once a client has associated. May
+ *               be empty, in which case both are only written to the serial log.
  * @return How the session ended. Callers are expected to act on this: the two
  *         timeouts mean the saved config still stands and boot should continue,
  *         while the failure results should be surfaced to the user, since the
