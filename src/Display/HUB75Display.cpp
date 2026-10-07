@@ -213,7 +213,8 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     // --- Minutes remaining, next two arrivals side by side ---
     // No data: red "-"
     // Otherwise each arrival gets its own colour: green (realtime) or yellow
-    // (scheduled), so the two can disagree on the same row.
+    // (scheduled), so the two can disagree on the same row. The imminent one is
+    // in the right column, the one after it in the left, e.g. "12, 4".
     uint16_t minutesColor;
 
     if (target.no_data) {
@@ -226,10 +227,16 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
                                           target.is_realtime);
 
         // A station may list only one upcoming arrival for this line; leave the
-        // second column empty rather than repeating the first.
+        // left column and the comma out rather than repeating the first.
         if (target.has_next_arrival) {
-            drawArrivalMinutes(XCOL_MINUTES_NEXT, y, target.next_minutes_remaining,
+            drawArrivalMinutes(XCOL_MINUTES_LATER, y, target.next_minutes_remaining,
                                target.next_is_realtime);
+
+            // Neutral white: the comma belongs to neither arrival, and the two
+            // it separates may be in different colours.
+            _matrix->setTextColor(COLOR_DEST);
+            _matrix->setCursor(XCOL_MINUTES_COMMA, y + 1);
+            _matrix->print(",");
         }
     }
 

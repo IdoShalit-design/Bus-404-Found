@@ -46,25 +46,34 @@
 // --- Layout: X cursor positions per row (depends on number of panels) ---
 // 2-panel layout (128px wide): generous spacing
 // 1-panel layout (64px wide):  compact spacing
-// A row shows two arrivals, so the minutes zone is two columns wide: the next
-// arrival first, then the one after it, each 12px (two digits) plus a gap.
+// A row shows two arrivals, so the minutes zone is two columns wide, separated
+// by a comma. The imminent arrival sits on the right, nearest the bus icon, and
+// the one after it on the left, so the pair reads outward as time runs out.
+// Each column is 12px (two digits) and the comma between them is one 6px glyph.
 #if PANEL_CHAIN == 2
     #define XCOL_LINE_NUM      0    // Bus line number (far left)
     #define XCOL_DEST          14   // Destination text
-    #define XCOL_MINUTES       96   // Minutes to the next arrival
-    #define XCOL_MINUTES_NEXT  110  // Minutes to the arrival after that
+    #define XCOL_MINUTES_LATER 88   // Minutes to the arrival after the next one
+    #define XCOL_MINUTES_COMMA 100  // Comma separating the two arrivals
+    #define XCOL_MINUTES       108  // Minutes to the next arrival
     #define XCOL_IMAGE_START   122  // Reserved for image (last 6px)
 #else
     #define XCOL_LINE_NUM      0    // Bus line number (far left)
     #define XCOL_DEST          14   // Destination text
-    #define XCOL_MINUTES       34   // Minutes to the next arrival
-    #define XCOL_MINUTES_NEXT  46   // Minutes to the arrival after that
+    #define XCOL_MINUTES_LATER 28   // Minutes to the arrival after the next one
+    #define XCOL_MINUTES_COMMA 40   // Comma separating the two arrivals
+    #define XCOL_MINUTES       46   // Minutes to the next arrival
     #define XCOL_IMAGE_START   58   // Reserved for image (last 6px)
 #endif
 
 // GFX default font at textSize(1): 6px per character (5px glyph + 1px spacing)
 #define FONT_CHAR_W      6
-#define MAX_DEST_CHARS   ((XCOL_MINUTES - XCOL_DEST) / FONT_CHAR_W)
+// ...and 8px per line, which is also its baseline-to-baseline advance.
+#define FONT_LINE_H      8
+// What actually fits on one line of showMessage(). A status string longer than
+// this is clipped on the panel, so keep messages within it or split them on '\n'.
+#define MAX_MESSAGE_CHARS (DISPLAY_WIDTH / FONT_CHAR_W)
+#define MAX_DEST_CHARS   ((XCOL_MINUTES_LATER - XCOL_DEST) / FONT_CHAR_W)
 
 // --- Icon dimensions (fits inside the reserved image zone at row end) ---
 #define ICON_W 8   // pixels wide  (replace with your bitmap width)
