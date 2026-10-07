@@ -1,0 +1,12 @@
+# Wokwi simulator configuration.
+#
+# firmware points at the merged 8 MB image from make_sim_image.py, not at
+# firmware.bin. A bare application binary makes Wokwi supply its own bootloader
+# and a default partition table, and LittleFS then fails to mount -- which the
+# firmware reports as a config error, several layers away from the cause.
+#
+# Run `python make_sim_image.py` first, and again after any code change.
+[wokwi]
+version = 1
+firmware = '.pio/build/sim/flash.bin'
+elf = '.pio/build/sim/firmware.elf'

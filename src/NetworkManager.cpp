@@ -1,5 +1,7 @@
 #include "NetworkManager.h"
 
+#include "Config.h"  // SIM_WIFI and the simulator's channel
+
 WifiConnectionManager::WifiConnectionManager(const WifiCredentials& creds) 
 : _credentials(creds) {
 }
@@ -82,7 +84,14 @@ bool ensureWiFiConnected(const char* ssid, const char* password, unsigned long t
     // debugging, and it must not be the thing that discloses a home network key.
     Serial.printf("[WiFi] Attempting reconnect with SSID='%s', password=<%u chars>\n", ssid,
                   static_cast<unsigned>(password != nullptr ? strlen(password) : 0));
+
+#if SIM_WIFI
+    // Pinning the channel skips the scan phase, which Wokwi documents as about
+    // four seconds. Paid on every reconnect, so it is worth the conditional.
+    WiFi.begin(ssid, password, SIM_WIFI_CHANNEL);
+#else
     WiFi.begin(ssid, password);
+#endif
 
     unsigned long start = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {

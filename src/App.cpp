@@ -5,7 +5,16 @@
 #include <WiFiUdp.h>
 #include <cstring>
 
+// USE_SERIAL_RENDERER swaps the LED panel for a renderer that writes the same
+// rows to the serial log. Set it in platformio.ini. The two headers are mutually
+// exclusive on purpose: HUB75Display.h pulls in the DMA library, which a
+// simulator cannot run and which a log-only build has no use for.
+#if USE_SERIAL_RENDERER
+#include "Display/SerialRenderer.h"
+#else
 #include "Display/HUB75Display.h"
+#endif
+
 #include "NetworkManager.h"
 #include "RuntimeBuild/BuildStateNames.h"
 #include "RuntimeBuild/Builder.h"
@@ -91,6 +100,14 @@ void App::setup() {
 
     initDisplay();
 
+    // SKIP_PORTAL exists for simulation and for log-only debugging of the fetch
+    // path. The portal blocks boot for up to kNoClientTimeoutMs waiting for a
+    // client that, in a simulator, cannot arrive: Wokwi's gateway documents no
+    // soft-AP support, so every run would pay the full timeout before reaching
+    // the code under test. The saved config on the filesystem is used as-is.
+#if SKIP_PORTAL
+    Serial.println("[Main] SKIP_PORTAL set - using the saved config, portal not started");
+#else
     // [this] carries the object showMessage() needs, and re-reads _renderer per
     // call, so this survives the renderer swap in buildPipeline().
     const PortalNotifyFn showOnPanel =
@@ -110,9 +127,13 @@ void App::setup() {
     // stale, and now useless, Wi-Fi passphrase on the display.
     const char* portalMessage = portalResultToDisplayMessage(portalResult);
     showMessage(portalMessage != nullptr ? portalMessage : "Loading...");
+#endif  // SKIP_PORTAL
 
-    // If SCREEN_DEBUG is enabled, run display tests and never return
-    #if SCREEN_DEBUG
+    // If SCREEN_DEBUG is enabled, run display tests and never return.
+    // Excluded from serial-renderer builds: screen_tests() is a HUB75Display
+    // method exercising the panel itself, so there is no renderer to cast to and
+    // nothing it could test.
+    #if SCREEN_DEBUG && !USE_SERIAL_RENDERER
         Serial.println("[Main] SCREEN_DEBUG enabled - running screen tests");
         static_cast<HUB75Display*>(_renderer.get())->screen_tests();
         // screen_tests() never returns
@@ -149,7 +170,11 @@ void App::loop() {
 // =========================================
 
 void App::initDisplay() {
+#if USE_SERIAL_RENDERER
+    _renderer = std::unique_ptr<IRenderer>(new SerialRenderer());
+#else
     _renderer = std::unique_ptr<IRenderer>(new HUB75Display());
+#endif
     if (!_renderer->init()) {
         Serial.println("[Main] FATAL: Display init failed");
         halt("Display Init Failed");
@@ -167,6 +192,20 @@ void App::loadConfig() {
     }
     _runtimeConfigLoaded = true;
 
+#if SIM_WIFI
+    // Overridden here rather than at each call site: connectWifi() and the
+    // ensureWiFiConnected() call in fetchAndRender() both read these fields, so
+    // this is the one place that covers every consumer. The saved credentials
+    // stay on flash untouched -- only this boot's copy is redirected.
+    strncpy(_runtimeConfig.wifi.ssid, SIM_WIFI_SSID, sizeof(_runtimeConfig.wifi.ssid) - 1);
+    _runtimeConfig.wifi.ssid[sizeof(_runtimeConfig.wifi.ssid) - 1] = '\0';
+    strncpy(_runtimeConfig.wifi.password, SIM_WIFI_PASSWORD,
+            sizeof(_runtimeConfig.wifi.password) - 1);
+    _runtimeConfig.wifi.password[sizeof(_runtimeConfig.wifi.password) - 1] = '\0';
+    Serial.printf("[Config] SIM_WIFI set - using '%s' instead of the saved network\n",
+                  _runtimeConfig.wifi.ssid);
+#endif
+
     Serial.printf("[Config] Requested state: %s, concrete state: %s\n",
                   buildStateForLog(_runtimeConfig.buildState),
                   buildStateForLog(_runtimeConfig.concreteBuildState));
@@ -182,7 +221,12 @@ void App::connectWifi() {
         Serial.printf("[WiFi] Attempt #%d with SSID='%s'\n", wifiAttempt, _runtimeConfig.wifi.ssid);
 
         WiFi.disconnect();
+#if SIM_WIFI
+        // See ensureWiFiConnected(): the pinned channel skips the scan phase.
+        WiFi.begin(_runtimeConfig.wifi.ssid, _runtimeConfig.wifi.password, SIM_WIFI_CHANNEL);
+#else
         WiFi.begin(_runtimeConfig.wifi.ssid, _runtimeConfig.wifi.password);
+#endif
 
         Serial.printf("Connecting to %s", _runtimeConfig.wifi.ssid);
         unsigned long wifiStart = millis();
