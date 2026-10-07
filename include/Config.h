@@ -9,8 +9,7 @@
 #define MEMORY_DEBUG         0  // Set to 1 to log heap memory usage to LittleFS (heap_log.txt)
 
 // Defaulted with #ifndef rather than #define, so an environment in
-// platformio.ini can set them with -D without a redefinition warning. Both are
-// off here, which keeps the hardware build exactly as it was.
+// platformio.ini can set them with -D without a redefinition warning.
 //
 // USE_SERIAL_RENDERER: write the panel rows to the serial log instead of the
 // LED matrix. Useful on hardware for telling a missing fetch apart from a
@@ -20,10 +19,12 @@
 #endif
 
 // SKIP_PORTAL: go straight to the saved config instead of opening the
-// provisioning portal. The portal waits on a client that cannot exist in a
-// simulator, so every run would stall for the full timeout first.
+// provisioning portal. On by default: the portal blocks boot for its full join
+// window on every start, which is only worth paying when the config needs
+// changing. Set it to 0 to provision the device. A simulator needs it on
+// regardless -- the portal waits there on a client that cannot exist.
 #ifndef SKIP_PORTAL
-#define SKIP_PORTAL 0
+#define SKIP_PORTAL 1
 #endif
 
 // SIM_WIFI: join the simulator's virtual access point instead of the network
