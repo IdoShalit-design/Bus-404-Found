@@ -176,7 +176,12 @@ ConfigResult parseBuildInfoConfig(RuntimeConfig& outConfig, BuildState concreteS
         return failure("Missing /build_info.json");
     }
 
-    StaticJsonDocument<4096> buildInfoDoc;
+    // Heap, not stack. As a StaticJsonDocument this put 4 KB into the frame of
+    // whichever caller reached it, and the worst of those is a portal form
+    // submission: WebServer handler chain, this parser and LittleFS all nested on
+    // the same stack. That combination overran loopTask and rebooted the board.
+    // The heap has room to spare here (~200 KB free while the portal is up).
+    DynamicJsonDocument buildInfoDoc(4096);
     DeserializationError buildInfoErr = deserializeJson(buildInfoDoc, buildInfoFile);
     buildInfoFile.close();
 
