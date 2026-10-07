@@ -76,7 +76,12 @@ bool ensureWiFiConnected(const char* ssid, const char* password, unsigned long t
 
     Serial.println("[WiFi] Disconnected, attempting reconnect...");
     WiFi.disconnect();
-    Serial.printf("[WiFi] Attempting reconnect with SSID='%s', PASSWORD='%s'\n", ssid, password);
+
+    // The password is reported as a length, not a value. This log is read off a
+    // terminal and routinely pasted into chats and issue trackers while
+    // debugging, and it must not be the thing that discloses a home network key.
+    Serial.printf("[WiFi] Attempting reconnect with SSID='%s', password=<%u chars>\n", ssid,
+                  static_cast<unsigned>(password != nullptr ? strlen(password) : 0));
     WiFi.begin(ssid, password);
 
     unsigned long start = millis();
