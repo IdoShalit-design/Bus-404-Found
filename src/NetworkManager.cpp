@@ -1,10 +1,10 @@
 #include "NetworkManager.h"
 
-NetworkManager::NetworkManager(const WifiCredentials& creds) 
+WifiConnectionManager::WifiConnectionManager(const WifiCredentials& creds) 
 : _credentials(creds) {
 }
 
-bool NetworkManager::connect_to_wifi() {
+bool WifiConnectionManager::connect_to_wifi() {
     WiFi.mode(WIFI_STA);
     
     Serial.println("Starting WiFi Connection...");
@@ -36,7 +36,7 @@ bool NetworkManager::connect_to_wifi() {
     }
 }
 
-void NetworkManager::print_networks() {
+void WifiConnectionManager::print_networks() {
     int n = WiFi.scanNetworks();
     Serial.print("Scan done. ");
     Serial.print(n);
@@ -56,7 +56,7 @@ void NetworkManager::print_networks() {
     WiFi.scanDelete();
 }
 
-void NetworkManager::print_wifi_status() {
+void WifiConnectionManager::print_wifi_status() {
     switch (WiFi.status()) {
         case WL_IDLE_STATUS:     Serial.println("Status: IDLE (Changing states)"); break;
         case WL_NO_SSID_AVAIL:   Serial.println("Status: SSID NOT FOUND (Check your wifi_name)"); break;
