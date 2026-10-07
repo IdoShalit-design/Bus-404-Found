@@ -7,10 +7,29 @@
  */
 
 #include "Display/HUB75Display.h"
+
+#include <cstring>
+
 #include "Structs.h"
 
 // Row height for each bus entry (pixels)
 static const int ROW_HEIGHT = DISPLAY_HEIGHT / 3 + 1;  // 10px per row for 3 targets
+
+// Extra pixels the first and last line of a multi-line message move away from
+// the centre, one up and one down.
+static const int kEdgeLineSpread = 2;
+
+// Number of '\n'-separated lines in msg. A trailing newline does not open a new
+// line, so "a\n" is one line, matching how the block height is then centred.
+static int countLines(const char* msg) {
+    int lines = 1;
+    for (const char* cursor = msg; *cursor != '\0'; cursor++) {
+        if (*cursor == '\n' && *(cursor + 1) != '\0') {
+            lines++;
+        }
+    }
+    return lines;
+}
 
 // =========================================
 // Constructor & Destructor
@@ -107,11 +126,54 @@ void HUB75Display::showMessage(const char* msg) {
     _matrix->fillScreen(0);
     _matrix->setTextSize(1);
     _matrix->setTextColor(_matrix->color565(255, 255, 255));
-    int len = strlen(msg);
-    int x = (DISPLAY_WIDTH - len * FONT_CHAR_W) / 2;
-    int y = (DISPLAY_HEIGHT - 8) / 2;  // 8px font height
-    _matrix->setCursor(x, y);
-    _matrix->print(msg);
+
+    // Each '\n'-separated line is positioned on its own. print() would keep the
+    // whole block on one cursor origin, so a wide first line pushes every later
+    // line off the left edge with it -- which is how the trailing lines of the
+    // portal's join screen, the ones the user cannot get anywhere else, ended up
+    // invisible.
+    const int lineCount = countLines(msg);
+    const int blockHeight = lineCount * FONT_LINE_H;
+
+    // Top-aligned rather than clipped-centred when the text is taller than the
+    // panel: losing the last line beats losing the first.
+    int y = blockHeight < DISPLAY_HEIGHT ? (DISPLAY_HEIGHT - blockHeight) / 2 : 0;
+
+    // Push the first line up and the last line down by kEdgeLineSpread, so a
+    // multi-line block (the portal's "join this AP" screen) uses the spare rows
+    // at the top and bottom instead of bunching up in the middle. Only when the
+    // extra rows exist, otherwise the outer lines would be clipped.
+    const bool spreadEdges =
+        lineCount > 1 && y >= kEdgeLineSpread &&
+        (y + blockHeight + kEdgeLineSpread) <= DISPLAY_HEIGHT;
+
+    const char* lineStart = msg;
+    int lineIndex = 0;
+    while (lineStart != nullptr) {
+        const char* lineEnd = strchr(lineStart, '\n');
+        const int len = lineEnd != nullptr ? static_cast<int>(lineEnd - lineStart)
+                                           : static_cast<int>(strlen(lineStart));
+
+        // Clamp instead of centring when a line is too wide, so it is clipped on
+        // the right only and its first characters always survive.
+        const int width = len * FONT_CHAR_W;
+        const int x = width < DISPLAY_WIDTH ? (DISPLAY_WIDTH - width) / 2 : 0;
+
+        int yOffset = 0;
+        if (spreadEdges) {
+            if (lineIndex == 0) yOffset = -kEdgeLineSpread;
+            else if (lineIndex == lineCount - 1) yOffset = kEdgeLineSpread;
+        }
+
+        _matrix->setCursor(x, y + yOffset);
+        for (int i = 0; i < len; i++) {
+            _matrix->write(lineStart[i]);
+        }
+
+        y += FONT_LINE_H;
+        lineIndex++;
+        lineStart = lineEnd != nullptr ? lineEnd + 1 : nullptr;
+    }
 }
 
 // =========================================
