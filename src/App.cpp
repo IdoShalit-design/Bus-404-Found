@@ -209,7 +209,17 @@ void App::loadConfig() {
     Serial.printf("[Config] Requested state: %s, concrete state: %s\n",
                   buildStateForLog(_runtimeConfig.buildState),
                   buildStateForLog(_runtimeConfig.concreteBuildState));
+    // Each pair is printed, not just the count. "pio run -t upload" does not
+    // rewrite LittleFS, so the config on the device is whatever uploadfs or the
+    // portal last wrote -- which need not match data/build_info.json in the
+    // repo. Without this, a lookup against a station the user never configured
+    // is indistinguishable from a station that has no service.
     Serial.printf("[Config] Loaded %d targets\n", _runtimeConfig.bus.targetCount);
+    for (int i = 0; i < _runtimeConfig.bus.targetCount; i++) {
+        Serial.printf("[Config]   target %d: station='%s' line='%s'\n", i,
+                      _runtimeConfig.bus.targets[i].stationId,
+                      _runtimeConfig.bus.targets[i].line);
+    }
 }
 
 void App::connectWifi() {
