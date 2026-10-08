@@ -1,4 +1,13 @@
-"""Compile and flash both firmware and the LittleFS data image to the ESP32."""
+"""Compile and flash both firmware and the LittleFS data image to the ESP32.
+
+Usage:
+    python flash_device.py                 # the normal hardware build
+    python flash_device.py hw-log          # the serial-log build instead
+
+The environment is always passed explicitly. A bare "pio run" builds and flashes
+every environment in platformio.ini in turn, which is both slow and wrong -- the
+board keeps whichever one happened to run last.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +19,7 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent
 PLATFORMIO_VENV_EXECUTABLE = Path.home() / ".platformio" / "penv" / "Scripts" / "platformio.exe"
+DEFAULT_ENVIRONMENT = "esp32-s3-devkitc-1"
 
 
 def find_platformio_command() -> list[str]:
@@ -25,31 +35,34 @@ def find_platformio_command() -> list[str]:
     )
 
 
-def run_platformio(platformio_command: list[str], target: str | None = None) -> None:
-    arguments = [*platformio_command, "run"]
+def run_platformio(
+    platformio_command: list[str], environment: str, target: str | None = None
+) -> None:
+    arguments = [*platformio_command, "run", "-e", environment]
     if target:
         arguments += ["--target", target]
-        print(f"\nRunning PlatformIO target: {target}")
+        print(f"\nRunning PlatformIO target: {target} ({environment})")
     else:
-        print("\nCompiling firmware")
+        print(f"\nCompiling firmware ({environment})")
     subprocess.run(arguments, cwd=PROJECT_DIR, check=True)
 
 
 def main() -> int:
+    environment = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_ENVIRONMENT
+
     try:
         platformio_command = find_platformio_command()
-        # Build everything before touching the device, so a compile error
-        # never leaves the board with new firmware but a stale filesystem.
-        run_platformio(platformio_command)
-        run_platformio(platformio_command, "uploadfs")
-        run_platformio(platformio_command, "buildfs")
-        run_platformio(platformio_command, "upload")
-        print("Done flashing!")
+        # Both images are built before either is written, so a compile error
+        # cannot leave the board carrying new firmware and a stale filesystem.
+        run_platformio(platformio_command, environment)
+        run_platformio(platformio_command, environment, "buildfs")
+        run_platformio(platformio_command, environment, "upload")
+        run_platformio(platformio_command, environment, "uploadfs")
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
         print(f"Deployment failed: {error}", file=sys.stderr)
         return 1
 
-    print("\nFirmware and LittleFS image compiled and flashed successfully.")
+    print(f"\nFirmware and LittleFS image flashed successfully ({environment}).")
     return 0
 
 
