@@ -61,6 +61,50 @@ int computeMinutesRemaining(const char* eta) {
     return max(delta, 0);
 }
 
+// Appends the distinct line_name values in the response to the current log line.
+// Bounded on purpose: a busy station lists dozens of visits, and the question
+// this answers -- "is this the station I meant?" -- is settled by the first
+// handful. Printed inline rather than collected into a String so a long list
+// cannot allocate on a path that already holds a 16 KB document.
+void printDistinctLineNames(JsonArray visits) {
+    constexpr int kMaxNamesToPrint = 12;
+
+    int printed = 0;
+    for (JsonObject visit : visits) {
+        const char* lineName = visit["line_name"];
+        if (lineName == nullptr) {
+            continue;
+        }
+
+        // O(n^2) over the visit list, which is fine: this runs only on a miss,
+        // and only to build one log line.
+        bool alreadyPrinted = false;
+        for (JsonObject earlier : visits) {
+            if (earlier == visit) {
+                break;
+            }
+            const char* earlierName = earlier["line_name"];
+            if (earlierName != nullptr && strcmp(earlierName, lineName) == 0) {
+                alreadyPrinted = true;
+                break;
+            }
+        }
+        if (alreadyPrinted) {
+            continue;
+        }
+
+        if (printed >= kMaxNamesToPrint) {
+            Serial.print(" ...");
+            break;
+        }
+
+        Serial.printf(" %s", lineName);
+        printed++;
+    }
+
+    Serial.println();
+}
+
 }  // namespace
 
 // =========================================
@@ -215,11 +259,19 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
     int matchCount = 0;
     bool destinationSeen = false;
 
+    // Counted separately from matchCount so the two ways this can come back
+    // empty stay distinguishable: the line is not at this station at all, or it
+    // is here but none of its visits carry a time we can read. Both used to
+    // report "not found", which is wrong in the second case and sends the reader
+    // to check the station ID when the station ID was never the problem.
+    int lineNameMatches = 0;
+
     for (JsonObject visit : visits) {
         const char* lineName = visit["line_name"];
         if (lineName == nullptr || strcmp(lineName, bus.line) != 0) {
             continue;
         }
+        lineNameMatches++;
 
         // Take the destination from the first visit of this line, whether or not
         // its ETA turns out to be usable. The row is labelled by the line, not by
@@ -259,17 +311,26 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
     }
 
     if (matchCount == 0) {
-        // Line not found in any of the visits
-        Serial.printf("[CurlBusFetcherByLine] Line %s not found at station %s\n", bus.line, stationId);
+        if (lineNameMatches > 0) {
+            // The line is here; its arrivals are not readable. Nothing about the
+            // station or the line number needs changing, so say so.
+            Serial.printf("[CurlBusFetcherByLine] Line %s at station %s: %d visit(s), none with a usable eta\n",
+                          bus.line, stationId, lineNameMatches);
+        } else {
+            // Genuinely absent. The line names that *were* present are the
+            // fastest way to tell a wrong station ID from a wrong line number,
+            // and from a line that simply has no service right now.
+            Serial.printf("[CurlBusFetcherByLine] Line %s not at station %s. Present (%u visits):",
+                          bus.line, stationId, static_cast<unsigned>(visits.size()));
+            printDistinctLineNames(visits);
+        }
         return false;
     }
 
-    #ifdef DEBUG
     Serial.printf("[CurlBusFetcherByLine] Line %s at station %s: ETA %s (%d min), next %s (%d min)\n",
                   bus.line, stationId, bus.last_known_ETA, bus.minutes_remaining,
                   bus.has_next_arrival ? bus.next_ETA : "-",
                   bus.has_next_arrival ? bus.next_minutes_remaining : -1);
-    #endif
     return true;
 }
 
