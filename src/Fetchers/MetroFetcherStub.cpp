@@ -1,25 +1,5 @@
 #include "Fetchers/MetroFetcherStub.h"
 
-#include <string.h>
-
-namespace {
-
-void copyBounded(char* dst, size_t dstSize, const char* src) {
-    if (dst == nullptr || dstSize == 0) {
-        return;
-    }
-
-    if (src == nullptr) {
-        dst[0] = '\0';
-        return;
-    }
-
-    strncpy(dst, src, dstSize - 1);
-    dst[dstSize - 1] = '\0';
-}
-
-} // namespace
-
 const MetroFetcherStub::StubArrival MetroFetcherStub::kStubArrivals[MetroFetcherStub::kStubCount] = {
     {"M1", "Central Station", "08:12", true, 2, "08:27", true, 17},
     {"M3", "City Hall", "08:16", false, 6, "08:46", false, 36},
@@ -32,16 +12,13 @@ bool MetroFetcherStub::update(BusTarget& bus) {
     const StubArrival& arrival = kStubArrivals[_nextIndex];
     _nextIndex = (_nextIndex + 1) % kStubCount;
 
-    copyBounded(bus.line, sizeof(bus.line), arrival.line);
-    copyBounded(bus.destination, sizeof(bus.destination), arrival.destination);
-    copyBounded(bus.last_known_ETA, sizeof(bus.last_known_ETA), arrival.eta);
-    bus.is_realtime = arrival.is_realtime;
-    bus.minutes_remaining = arrival.minutes_remaining;
-    bus.no_data = false;
+    bus.setLine(arrival.line);
+    bus.setDestination(arrival.destination);
+    bus.setArrival(arrival.eta, arrival.minutes_remaining, arrival.is_realtime);
 
-    bus.has_next_arrival = arrival.next_eta != nullptr;
-    copyBounded(bus.next_ETA, sizeof(bus.next_ETA), arrival.next_eta);
-    bus.next_is_realtime = arrival.next_is_realtime;
-    bus.next_minutes_remaining = arrival.next_minutes_remaining;
+    if (arrival.next_eta != nullptr) {
+        bus.setNextArrival(arrival.next_eta, arrival.next_minutes_remaining,
+                           arrival.next_is_realtime);
+    }
     return true;
 }

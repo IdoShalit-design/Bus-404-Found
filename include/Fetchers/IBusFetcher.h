@@ -6,7 +6,7 @@
 #ifndef IBUS_FETCHER_H
 #define IBUS_FETCHER_H
 
-#include "Structs.h"
+#include "BusTarget.h"
 
 /**
  * @class IBusFetcher
@@ -24,7 +24,7 @@ public:
 
     /**
      * @brief Updates the status of a specific bus target.
-     * * @param[in,out] bus Reference to the BusTarget struct to be updated.
+     * * @param[in,out] bus Reference to the BusTarget to be updated.
      * @return true if the update was successful and the line was found.
      * @return false if the update failed (network error or line not found).
      * * @note This is a Pure Virtual Function (= 0). Derived classes MUST implement it.

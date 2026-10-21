@@ -10,7 +10,7 @@
 
 #include <cstring>
 
-#include "Structs.h"
+#include "BusTarget.h"
 
 // Row height for each bus entry (pixels)
 static const int ROW_HEIGHT = DISPLAY_HEIGHT / 3 + 1;  // 10px per row for 3 targets
@@ -285,10 +285,10 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     // --- Line number (dark green, far left) ---
     _matrix->setTextColor(COLOR_BUS_NUM);
     _matrix->setCursor(XCOL_LINE_NUM, y + 1);
-    _matrix->print(target.line);
+    _matrix->print(target.line());
 
     // --- Destination (white) ---
-    String destStr = String(target.destination);
+    String destStr = String(target.destination());
     if (destStr.length() > MAX_DEST_CHARS) {
         destStr = destStr.substring(0, MAX_DEST_CHARS);
     }
@@ -304,20 +304,20 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     // in the right column, the one after it in the left, e.g. "12, 4".
     uint16_t minutesColor;
 
-    if (target.no_data) {
+    if (target.noData()) {
         minutesColor = COLOR_NO_DATA;
         _matrix->setTextColor(minutesColor);
         _matrix->setCursor(XCOL_MINUTES, y + 1);
         _matrix->print("-");
     } else {
-        minutesColor = drawArrivalMinutes(XCOL_MINUTES, y, target.minutes_remaining,
-                                          target.is_realtime);
+        minutesColor = drawArrivalMinutes(XCOL_MINUTES, y, target.minutesRemaining(),
+                                          target.isRealtime());
 
         // A station may list only one upcoming arrival for this line; leave the
         // left column and the comma out rather than repeating the first.
-        if (target.has_next_arrival) {
-            drawArrivalMinutes(XCOL_MINUTES_LATER, y, target.next_minutes_remaining,
-                               target.next_is_realtime);
+        if (target.hasNextArrival()) {
+            drawArrivalMinutes(XCOL_MINUTES_LATER, y, target.nextMinutesRemaining(),
+                               target.nextIsRealtime());
 
             // Neutral white: the comma belongs to neither arrival, and the two
             // it separates may be in different colours.
@@ -332,15 +332,15 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     drawIcon(XCOL_IMAGE_START, y, minutesColor, BUS_ICON);
 
     // Log what this row shows: the destination as truncated on the panel.
-    Serial.printf("[HUB75Display]   row %d: line %s | %s | ", row, target.line,
+    Serial.printf("[HUB75Display]   row %d: line %s | %s | ", row, target.line(),
                   destStr.c_str());
-    if (target.no_data) {
+    if (target.noData()) {
         Serial.print("no data");
     } else {
-        logArrival(target.last_known_ETA, target.minutes_remaining, target.is_realtime);
-        if (target.has_next_arrival) {
+        logArrival(target.eta(), target.minutesRemaining(), target.isRealtime());
+        if (target.hasNextArrival()) {
             Serial.print(", next ");
-            logArrival(target.next_ETA, target.next_minutes_remaining, target.next_is_realtime);
+            logArrival(target.nextEta(), target.nextMinutesRemaining(), target.nextIsRealtime());
         }
     }
     Serial.println();

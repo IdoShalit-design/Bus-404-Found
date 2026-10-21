@@ -7,7 +7,7 @@
 #include "Display/IRenderer.h"
 #include "Fetchers/IBusFetcher.h"
 #include "RuntimeBuild/ConfigLoader.h"
-#include "Structs.h"
+#include "BusTarget.h"
 
 /**
  * @brief Owns the whole device lifecycle: display, provisioning portal,

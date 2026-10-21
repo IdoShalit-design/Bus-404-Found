@@ -2,7 +2,7 @@
 #define IRENDERER_H
 
 #include <stdint.h>
-#include "Structs.h"
+#include "BusTarget.h"
 
 /**
  * @brief Abstract interface for rendering bus arrival data to a display.
@@ -25,7 +25,7 @@ public:
 
     /**
      * @brief Renders all bus targets to the display.
-     * @param targets Array of BusTarget structs with arrival data.
+     * @param targets Array of BusTarget objects with arrival data.
      * @param count Number of targets in the array.
      */
     virtual void render(const BusTarget* targets, int count) = 0;

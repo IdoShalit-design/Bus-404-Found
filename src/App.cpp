@@ -223,8 +223,8 @@ void App::loadConfig() {
     Serial.printf("[Config] Loaded %d targets\n", _runtimeConfig.bus.targetCount);
     for (int i = 0; i < _runtimeConfig.bus.targetCount; i++) {
         Serial.printf("[Config]   target %d: station='%s' line='%s'\n", i,
-                      _runtimeConfig.bus.targets[i].stationId,
-                      _runtimeConfig.bus.targets[i].line);
+                      _runtimeConfig.bus.targets[i].stationId(),
+                      _runtimeConfig.bus.targets[i].line());
     }
 }
 
@@ -352,20 +352,20 @@ void App::fetchAndRender() {
 
     for (int i = 0; i < targetCount; i++) {
         bool success = _busFetcher->update(targets[i]);
-        targets[i].no_data = !success;
+        targets[i].setNoData(!success);
 
         if (success) {
             Serial.printf("Line %s: %s (%d min) %s | next: %s (%d min) %s\n",
-                          targets[i].line,
-                          targets[i].last_known_ETA,
-                          targets[i].minutes_remaining,
-                          targets[i].is_realtime ? "[LIVE]" : "[SCHED]",
-                          targets[i].has_next_arrival ? targets[i].next_ETA : "--",
-                          targets[i].has_next_arrival ? targets[i].next_minutes_remaining : -1,
-                          !targets[i].has_next_arrival ? "" :
-                              (targets[i].next_is_realtime ? "[LIVE]" : "[SCHED]"));
+                          targets[i].line(),
+                          targets[i].eta(),
+                          targets[i].minutesRemaining(),
+                          targets[i].isRealtime() ? "[LIVE]" : "[SCHED]",
+                          targets[i].hasNextArrival() ? targets[i].nextEta() : "--",
+                          targets[i].hasNextArrival() ? targets[i].nextMinutesRemaining() : -1,
+                          !targets[i].hasNextArrival() ? "" :
+                              (targets[i].nextIsRealtime() ? "[LIVE]" : "[SCHED]"));
         } else {
-            Serial.printf("Line %s: No data\n", targets[i].line);
+            Serial.printf("Line %s: No data\n", targets[i].line());
         }
     }
     Serial.println("-----------------------------");

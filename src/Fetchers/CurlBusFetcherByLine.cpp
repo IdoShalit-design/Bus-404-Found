@@ -148,9 +148,9 @@ CurlBusFetcherByLine::~CurlBusFetcherByLine() {
  * @brief Fetches the next two arrivals of a specific bus line at a station.
  *
  * @param bus Reference to BusTarget containing stationId and line to search for.
- *            On success, bus.last_known_ETA holds the next arrival in "HH:MM"
- *            format, and bus.next_ETA the one after it when the station lists a
- *            second arrival for the line (bus.has_next_arrival says whether it does).
+ *            On success, bus.eta() holds the next arrival in "HH:MM"
+ *            format, and bus.nextEta() the one after it when the station lists a
+ *            second arrival for the line (bus.hasNextArrival() says whether it does).
  * @return true if the bus line was found and ETA was updated.
  * @return false if HTTP request failed, parsing failed, or line not found.
  */
@@ -162,7 +162,7 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
 
     // Bind as const char* so ArduinoJson stores the pointer for filter keys
     // instead of copying the string into the document pool.
-    const char* stationId = bus.stationId;
+    const char* stationId = bus.stationId();
 
     HTTPClient http;
     
@@ -275,7 +275,7 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
 
     for (JsonObject visit : visits) {
         const char* lineName = visit["line_name"];
-        if (lineName == nullptr || strcmp(lineName, bus.line) != 0) {
+        if (lineName == nullptr || strcmp(lineName, bus.line()) != 0) {
             continue;
         }
         lineNameMatches++;
@@ -288,8 +288,7 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
         if (!destinationSeen) {
             const char* destName = visit["static_info"]["route"]["destination"]["name"]["EN"];
             if (destName) {
-                strncpy(bus.destination, destName, sizeof(bus.destination) - 1);
-                bus.destination[sizeof(bus.destination) - 1] = '\0';
+                bus.setDestination(destName);
                 destinationSeen = true;
             }
         }
@@ -299,20 +298,18 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
             continue;
         }
 
+        char etaTime[MAX_ETA_LEN];
+        copyEtaTime(etaTime, eta);
+        // Real-time when the visit carries GPS location data
+        const bool isRealtime = !visit["location"].isNull();
+
         if (matchCount == 0) {
-            copyEtaTime(bus.last_known_ETA, eta);
-            // Real-time when the visit carries GPS location data
-            bus.is_realtime = !visit["location"].isNull();
-            bus.minutes_remaining = computeMinutesRemaining(eta);
-            bus.has_next_arrival = false;
+            bus.setArrival(etaTime, computeMinutesRemaining(eta), isRealtime);
             matchCount = 1;
             continue;
         }
 
-        copyEtaTime(bus.next_ETA, eta);
-        bus.next_is_realtime = !visit["location"].isNull();
-        bus.next_minutes_remaining = computeMinutesRemaining(eta);
-        bus.has_next_arrival = true;
+        bus.setNextArrival(etaTime, computeMinutesRemaining(eta), isRealtime);
         matchCount = 2;
         break;
     }
@@ -322,22 +319,22 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
             // The line is here; its arrivals are not readable. Nothing about the
             // station or the line number needs changing, so say so.
             Serial.printf("[CurlBusFetcherByLine] Line %s at station %s: %d visit(s), none with a usable eta\n",
-                          bus.line, stationId, lineNameMatches);
+                          bus.line(), stationId, lineNameMatches);
         } else {
             // Genuinely absent. The line names that *were* present are the
             // fastest way to tell a wrong station ID from a wrong line number,
             // and from a line that simply has no service right now.
             Serial.printf("[CurlBusFetcherByLine] Line %s not at station %s. Present (%u visits):",
-                          bus.line, stationId, static_cast<unsigned>(visits.size()));
+                          bus.line(), stationId, static_cast<unsigned>(visits.size()));
             printDistinctLineNames(visits);
         }
         return false;
     }
 
     Serial.printf("[CurlBusFetcherByLine] Line %s at station %s: ETA %s (%d min), next %s (%d min)\n",
-                  bus.line, stationId, bus.last_known_ETA, bus.minutes_remaining,
-                  bus.has_next_arrival ? bus.next_ETA : "-",
-                  bus.has_next_arrival ? bus.next_minutes_remaining : -1);
+                  bus.line(), stationId, bus.eta(), bus.minutesRemaining(),
+                  bus.hasNextArrival() ? bus.nextEta() : "-",
+                  bus.hasNextArrival() ? bus.nextMinutesRemaining() : -1);
     return true;
 }
 
