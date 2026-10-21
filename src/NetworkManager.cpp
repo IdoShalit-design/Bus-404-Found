@@ -1,10 +1,12 @@
 #include "NetworkManager.h"
 
-NetworkManager::NetworkManager(const WifiCredentials& creds) 
+#include "Config.h"  // SIM_WIFI and the simulator's channel
+
+WifiConnectionManager::WifiConnectionManager(const WifiCredentials& creds) 
 : _credentials(creds) {
 }
 
-bool NetworkManager::connect_to_wifi() {
+bool WifiConnectionManager::connect_to_wifi() {
     WiFi.mode(WIFI_STA);
     
     Serial.println("Starting WiFi Connection...");
@@ -36,7 +38,7 @@ bool NetworkManager::connect_to_wifi() {
     }
 }
 
-void NetworkManager::print_networks() {
+void WifiConnectionManager::print_networks() {
     int n = WiFi.scanNetworks();
     Serial.print("Scan done. ");
     Serial.print(n);
@@ -56,7 +58,7 @@ void NetworkManager::print_networks() {
     WiFi.scanDelete();
 }
 
-void NetworkManager::print_wifi_status() {
+void WifiConnectionManager::print_wifi_status() {
     switch (WiFi.status()) {
         case WL_IDLE_STATUS:     Serial.println("Status: IDLE (Changing states)"); break;
         case WL_NO_SSID_AVAIL:   Serial.println("Status: SSID NOT FOUND (Check your wifi_name)"); break;
@@ -75,9 +77,24 @@ bool ensureWiFiConnected(const char* ssid, const char* password, unsigned long t
     }
 
     Serial.println("[WiFi] Disconnected, attempting reconnect...");
+    // Cancel any attempt still in progress, and let the driver settle before
+    // begin() writes the config ("sta is connecting, cannot set config").
     WiFi.disconnect();
-    Serial.printf("[WiFi] Attempting reconnect with SSID='%s', PASSWORD='%s'\n", ssid, password);
+    delay(200);
+
+    // The password is reported as a length, not a value. This log is read off a
+    // terminal and routinely pasted into chats and issue trackers while
+    // debugging, and it must not be the thing that discloses a home network key.
+    Serial.printf("[WiFi] Attempting reconnect with SSID='%s', password=<%u chars>\n", ssid,
+                  static_cast<unsigned>(password != nullptr ? strlen(password) : 0));
+
+#if SIM_WIFI
+    // Pinning the channel skips the scan phase, which Wokwi documents as about
+    // four seconds. Paid on every reconnect, so it is worth the conditional.
+    WiFi.begin(ssid, password, SIM_WIFI_CHANNEL);
+#else
     WiFi.begin(ssid, password);
+#endif
 
     unsigned long start = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {

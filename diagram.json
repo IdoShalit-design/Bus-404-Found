@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "author": "Bus-404-Found",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-s3-devkitc-1",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {
+        "flashSize": "8",
+        "psramSize": "8",
+        "psramType": "octal"
+      }
+    }
+  ],
+  "connections": [
+    ["esp:TX", "$serialMonitor:RX", "", []],
+    ["esp:RX", "$serialMonitor:TX", "", []]
+  ],
+  "serialMonitor": {
+    "display": "always"
+  },
+  "_comments": [
+    "No HUB75 panel is wired here, and none can be: Wokwi does not implement",
+    "I2S, which is the peripheral the panel driver uses. The sim environment",
+    "builds with USE_SERIAL_RENDERER=1 so the rows arrive on the serial monitor",
+    "instead. See platformio.ini.",
+    "",
+    "flashSize must be 8. The LittleFS partition starts at 0x670000 in the 8 MB",
+    "table this firmware is built against, so a 4 MB simulated flash cannot",
+    "contain it and the mount fails -- reported by the firmware as a config",
+    "error, which points nowhere near the real cause.",
+    "",
+    "psram mirrors board_build.arduino.memory_type = qio_opi in platformio.ini.",
+    "If the simulated board fails early in boot, removing the two psram",
+    "attributes is the first thing to try: the PlatformIO board definition for",
+    "this devkit reports no PSRAM, so the two disagree on real hardware too."
+  ]
+}

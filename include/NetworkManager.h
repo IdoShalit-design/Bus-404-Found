@@ -16,16 +16,21 @@ struct WifiCredentials {
     WifiCredentials(const char* s, const char* p) : ssid(s), password(p) {}
 };
 
-class NetworkManager {
+// Renamed off "NetworkManager" for ESP-IDF 5.x / arduino-esp32 3.x: the core now
+// defines its own global `class NetworkManager` in libraries/Network, which
+// arrives here transitively through <WiFi.h> and collides with this one. Nothing
+// instantiates this class today -- App.cpp includes this header for the free
+// function ensureWiFiConnected() below -- so this is a rename, not a redesign.
+class WifiConnectionManager {
 private:
     WifiCredentials _credentials; // Private member (naming convention: underscore prefix)
 
 public:
     /**
-     * @brief Construct a new Network Manager object
+     * @brief Construct a new Wifi Connection Manager object
      * @param creds Pass by reference (&) to avoid unnecessary copying of the struct
      */
-    NetworkManager(const WifiCredentials& creds);
+    WifiConnectionManager(const WifiCredentials& creds);
 
     /**
      * @brief Connects to the WiFi network stored in the credentials

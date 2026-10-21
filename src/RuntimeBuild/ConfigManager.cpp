@@ -5,6 +5,8 @@
 #include <LittleFS.h>
 #include <string.h>
 
+#include "RuntimeBuild/BuildStateNames.h"
+
 namespace {
 
 const char* kBuildStateFile = "/build_state.json";
@@ -12,46 +14,6 @@ const char* kLastConcreteBuildStateFile = "/last_concrete_build_state.json";
 const char* kWifiCredentialsFile = "/wifi_credentials.json";
 const char* kBuildInfoFile = "/build_info.json";
 constexpr uint8_t kConfigVersion = 1;
-
-const char* buildStateToString(BuildState state) {
-    switch (state) {
-        case BUS_BY_STATION:
-            return "BUS_BY_STATION";
-        case BUS_BY_LINES:
-            return "BUS_BY_LINES";
-        case NY_METRO_BY_STATION:
-            return "NY_METRO_BY_STATION";
-        case USE_CURRENT_BUILD:
-            return "USE_CURRENT_BUILD";
-        default:
-            return nullptr;
-    }
-}
-
-bool parseBuildState(const char* stateText, BuildState& outState) {
-    if (stateText == nullptr) {
-        return false;
-    }
-
-    if (strcmp(stateText, "BUS_BY_STATION") == 0) {
-        outState = BUS_BY_STATION;
-        return true;
-    }
-    if (strcmp(stateText, "BUS_BY_LINES") == 0) {
-        outState = BUS_BY_LINES;
-        return true;
-    }
-    if (strcmp(stateText, "NY_METRO_BY_STATION") == 0) {
-        outState = NY_METRO_BY_STATION;
-        return true;
-    }
-    if (strcmp(stateText, "USE_CURRENT_BUILD") == 0) {
-        outState = USE_CURRENT_BUILD;
-        return true;
-    }
-
-    return false;
-}
 
 bool ensureLittleFsReady() {
     if (LittleFS.begin(false)) {
@@ -167,7 +129,7 @@ bool saveLastConcreteBuildStateConfig(BuildState state) {
         return false;
     }
 
-    if (state == USE_CURRENT_BUILD) {
+    if (state == BuildState::USE_CURRENT_BUILD) {
         Serial.println("[ConfigManager] Refusing to save USE_CURRENT_BUILD as concrete state");
         return false;
     }
@@ -211,6 +173,50 @@ bool saveWifiCredentialsConfig(const char* ssid, const char* password) {
     return true;
 }
 
+bool loadWifiCredentialsConfig(char* ssidOut, size_t ssidOutLen, char* passwordOut, size_t passwordOutLen) {
+    if (!ensureLittleFsReady()) {
+        return false;
+    }
+
+    if (ssidOut == nullptr || ssidOutLen == 0 || passwordOut == nullptr || passwordOutLen == 0) {
+        return false;
+    }
+
+    File wifiFile = LittleFS.open(kWifiCredentialsFile, "r");
+    if (!wifiFile) {
+        Serial.println("[ConfigManager] Missing /wifi_credentials.json");
+        return false;
+    }
+
+    StaticJsonDocument<512> doc;
+    DeserializationError err = deserializeJson(doc, wifiFile);
+    wifiFile.close();
+    if (err) {
+        Serial.println("[ConfigManager] Invalid /wifi_credentials.json");
+        return false;
+    }
+
+    JsonVariantConst versionValue = doc["version"];
+    if (versionValue.isNull() || versionValue.as<int>() != kConfigVersion) {
+        Serial.println("[ConfigManager] /wifi_credentials.json schema version mismatch");
+        return false;
+    }
+
+    const char* ssidText = doc["ssid"];
+    const char* passwordText = doc["password"];
+    if (ssidText == nullptr || ssidText[0] == '\0' || passwordText == nullptr || passwordText[0] == '\0') {
+        Serial.println("[ConfigManager] Empty ssid/password in /wifi_credentials.json");
+        return false;
+    }
+
+    strncpy(ssidOut, ssidText, ssidOutLen - 1);
+    ssidOut[ssidOutLen - 1] = '\0';
+    strncpy(passwordOut, passwordText, passwordOutLen - 1);
+    passwordOut[passwordOutLen - 1] = '\0';
+
+    return true;
+}
+
 bool saveBuildInfoStationConfig(const char* stationId) {
     if (!ensureLittleFsReady()) {
         return false;
@@ -227,57 +233,33 @@ bool saveBuildInfoStationConfig(const char* stationId) {
     return writeBuildInfoDoc(doc);
 }
 
-bool saveBuildInfoLinesConfig(const char* stationId, const char* const* lines, size_t lineCount) {
+bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* lines, size_t targetCount) {
     if (!ensureLittleFsReady()) {
         return false;
     }
 
-    if (stationId == nullptr || stationId[0] == '\0') {
-        Serial.println("[ConfigManager] Cannot persist empty stationId in build_info.json");
-        return false;
-    }
-
-    if (lines == nullptr || lineCount == 0) {
-        Serial.println("[ConfigManager] build_info.json lines array cannot be empty");
+    if (stationIds == nullptr || lines == nullptr || targetCount == 0) {
+        Serial.println("[ConfigManager] build_info.json targets array cannot be empty");
         return false;
     }
 
     StaticJsonDocument<1024> doc;
     doc["version"] = kConfigVersion;
-    doc["stationId"] = stationId;
-    JsonArray linesArray = doc.createNestedArray("lineNumbers");
+    JsonArray targetsArray = doc.createNestedArray("targets");
 
-    for (size_t i = 0; i < lineCount; i++) {
+    for (size_t i = 0; i < targetCount; i++) {
+        const char* stationId = stationIds[i];
         const char* lineValue = lines[i];
-        if (lineValue == nullptr || lineValue[0] == '\0') {
-            Serial.println("[ConfigManager] Empty line value in build_info.json");
+        if (stationId == nullptr || stationId[0] == '\0' || lineValue == nullptr || lineValue[0] == '\0') {
+            Serial.println("[ConfigManager] Empty stationId/line in build_info.json target");
             return false;
         }
 
-        linesArray.add(lineValue);
+        JsonObject target = targetsArray.createNestedObject();
+        target["stationId"] = stationId;
+        target["line"] = lineValue;
     }
 
     return writeBuildInfoDoc(doc);
 }
 
-bool saveBuildInfoCurrentConfig() {
-    if (!ensureLittleFsReady()) {
-        return false;
-    }
-
-    StaticJsonDocument<256> doc;
-    doc["version"] = kConfigVersion;
-    doc["useCurrentBuild"] = true;
-    return writeBuildInfoDoc(doc);
-}
-
-bool saveBusTargetsConfig(const BusTarget (&targets)[3]) {
-    const char* stationId = targets[0].stationId;
-    const char* lines[3] = {
-        targets[0].line,
-        targets[1].line,
-        targets[2].line,
-    };
-
-    return saveBuildInfoLinesConfig(stationId, lines, 3);
-}

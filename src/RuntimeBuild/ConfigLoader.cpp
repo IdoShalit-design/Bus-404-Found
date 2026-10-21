@@ -4,39 +4,29 @@
 #include <LittleFS.h>
 #include <string.h>
 
+#include "RuntimeBuild/BuildStateNames.h"
 #include "RuntimeBuild/ConfigManager.h"
 
 namespace {
 
-bool parseBuildState(const char* stateText, BuildState& outState) {
-    if (stateText == nullptr) {
-        return false;
-    }
+constexpr ConfigResult kOk = {true, nullptr};
 
-    if (strcmp(stateText, "BUS_BY_STATION") == 0) {
-        outState = BUS_BY_STATION;
-        return true;
-    }
-    if (strcmp(stateText, "BUS_BY_LINES") == 0) {
-        outState = BUS_BY_LINES;
-        return true;
-    }
-    if (strcmp(stateText, "NY_METRO_BY_STATION") == 0) {
-        outState = NY_METRO_BY_STATION;
-        return true;
-    }
-    if (strcmp(stateText, "USE_CURRENT_BUILD") == 0) {
-        outState = USE_CURRENT_BUILD;
-        return true;
-    }
-
-    return false;
+ConfigResult failure(const char* message) {
+    return {false, message};
 }
 
-void setError(char* errorBuffer, size_t errorBufferLen, const char* message) {
-    if (errorBuffer != nullptr && errorBufferLen > 0) {
-        snprintf(errorBuffer, errorBufferLen, "%s", message);
-    }
+// Parsed config supplies only the lookup keys; blank the live arrival fields
+// so a target is well-defined before the first fetch.
+void resetArrivalState(BusTarget& target) {
+    target.destination[0] = '\0';
+    target.is_realtime = false;
+    target.last_known_ETA[0] = '\0';
+    target.minutes_remaining = 0;
+    target.no_data = false;
+    target.next_is_realtime = false;
+    target.next_ETA[0] = '\0';
+    target.next_minutes_remaining = 0;
+    target.has_next_arrival = false;
 }
 
 void copyBounded(char* dst, size_t dstSize, const char* src) {
@@ -53,11 +43,10 @@ void copyBounded(char* dst, size_t dstSize, const char* src) {
     dst[dstSize - 1] = '\0';
 }
 
-bool parseWifiConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseWifiConfig(RuntimeConfig& outConfig) {
     File wifiFile = LittleFS.open("/wifi_credentials.json", "r");
     if (!wifiFile) {
-        setError(errorBuffer, errorBufferLen, "Missing /wifi_credentials.json");
-        return false;
+        return failure("Missing /wifi_credentials.json");
     }
 
     StaticJsonDocument<512> wifiDoc;
@@ -65,46 +54,40 @@ bool parseWifiConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBu
     wifiFile.close();
 
     if (wifiErr) {
-        setError(errorBuffer, errorBufferLen, "Invalid wifi_credentials.json");
-        return false;
+        return failure("Invalid wifi_credentials.json");
     }
 
     JsonVariantConst versionValue = wifiDoc["version"];
     if (versionValue.isNull()) {
-        setError(errorBuffer, errorBufferLen, "wifi_credentials.json missing version");
-        return false;
+        return failure("wifi_credentials.json missing version");
     }
 
     int version = versionValue.as<int>();
     if (version != CONFIG_SCHEMA_VERSION) {
-        setError(errorBuffer, errorBufferLen, "wifi_credentials.json schema version mismatch");
-        return false;
+        return failure("wifi_credentials.json schema version mismatch");
     }
 
     const char* ssid = wifiDoc["ssid"];
     const char* password = wifiDoc["password"];
 
     if (ssid == nullptr || strlen(ssid) == 0) {
-        setError(errorBuffer, errorBufferLen, "wifi_credentials.json missing ssid");
-        return false;
+        return failure("wifi_credentials.json missing ssid");
     }
 
     if (password == nullptr || strlen(password) == 0) {
-        setError(errorBuffer, errorBufferLen, "wifi_credentials.json missing password");
-        return false;
+        return failure("wifi_credentials.json missing password");
     }
 
     copyBounded(outConfig.wifi.ssid, sizeof(outConfig.wifi.ssid), ssid);
     copyBounded(outConfig.wifi.password, sizeof(outConfig.wifi.password), password);
 
-    return true;
+    return kOk;
 }
 
-bool parseBuildStateConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseBuildStateConfig(RuntimeConfig& outConfig) {
     File stateFile = LittleFS.open("/build_state.json", "r");
     if (!stateFile) {
-        setError(errorBuffer, errorBufferLen, "Missing /build_state.json");
-        return false;
+        return failure("Missing /build_state.json");
     }
 
     StaticJsonDocument<256> stateDoc;
@@ -112,179 +95,177 @@ bool parseBuildStateConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t e
     stateFile.close();
 
     if (stateErr) {
-        setError(errorBuffer, errorBufferLen, "Invalid build_state.json");
-        return false;
+        return failure("Invalid build_state.json");
     }
 
     JsonVariantConst versionValue = stateDoc["version"];
     if (versionValue.isNull()) {
-        setError(errorBuffer, errorBufferLen, "build_state.json missing version");
-        return false;
+        return failure("build_state.json missing version");
     }
 
     int version = versionValue.as<int>();
     if (version != CONFIG_SCHEMA_VERSION) {
-        setError(errorBuffer, errorBufferLen, "build_state.json schema version mismatch");
-        return false;
+        return failure("build_state.json schema version mismatch");
     }
 
     const char* stateText = stateDoc["state"];
     if (!parseBuildState(stateText, outConfig.buildState)) {
-        setError(errorBuffer, errorBufferLen, "build_state.json has unknown state");
-        return false;
+        return failure("build_state.json has unknown state");
     }
 
-    return true;
+    return kOk;
 }
 
-bool parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj) {
     const char* stationId = buildInfoObj["stationId"];
     if (stationId == nullptr || strlen(stationId) == 0) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing stationId");
-        return false;
+        return failure("build_info.json missing stationId");
     }
 
-    for (int i = 0; i < MAX_RUNTIME_TARGETS; i++) {
+    for (size_t i = 0; i < MAX_RUNTIME_TARGETS; i++) {
         copyBounded(outConfig.bus.targets[i].stationId, sizeof(outConfig.bus.targets[i].stationId), stationId);
         outConfig.bus.targets[i].line[0] = '\0';
-        outConfig.bus.targets[i].destination[0] = '\0';
+        resetArrivalState(outConfig.bus.targets[i]);
     }
 
     outConfig.bus.targetCount = MAX_RUNTIME_TARGETS;
-    return true;
+    return kOk;
 }
 
-bool parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj, char* errorBuffer, size_t errorBufferLen) {
-    const char* stationId = buildInfoObj["stationId"];
-    if (stationId == nullptr || strlen(stationId) == 0) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing stationId");
-        return false;
+ConfigResult parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj) {
+    JsonArrayConst targets = buildInfoObj["targets"].as<JsonArrayConst>();
+    if (targets.isNull()) {
+        return failure("build_info.json missing targets array");
     }
 
-    JsonArrayConst lines = buildInfoObj["lineNumbers"].as<JsonArrayConst>();
-    if (lines.isNull()) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing lineNumbers array");
-        return false;
+    if (targets.size() == 0) {
+        return failure("targets array cannot be empty");
     }
 
-    if (lines.size() == 0) {
-        setError(errorBuffer, errorBufferLen, "lineNumbers array cannot be empty");
-        return false;
-    }
-
-    if (lines.size() > MAX_RUNTIME_TARGETS) {
-        setError(errorBuffer, errorBufferLen, "Too many lines in build_info.json");
-        return false;
+    if (targets.size() > MAX_RUNTIME_TARGETS) {
+        return failure("Too many targets in build_info.json");
     }
 
     int idx = 0;
-    for (JsonVariantConst lineValue : lines) {
-        const char* lineText = lineValue.as<const char*>();
-        if (lineText == nullptr || strlen(lineText) == 0) {
-            setError(errorBuffer, errorBufferLen, "build_info.json contains empty line");
-            return false;
+    for (JsonVariantConst targetValue : targets) {
+        JsonObjectConst target = targetValue.as<JsonObjectConst>();
+        const char* stationId = target["stationId"];
+        const char* lineText = target["line"];
+
+        if (stationId == nullptr || strlen(stationId) == 0) {
+            return failure("build_info.json target missing stationId");
         }
+        if (lineText == nullptr || strlen(lineText) == 0) {
+            return failure("build_info.json target missing line");
+        }
+
         copyBounded(outConfig.bus.targets[idx].stationId, sizeof(outConfig.bus.targets[idx].stationId), stationId);
         copyBounded(outConfig.bus.targets[idx].line, sizeof(outConfig.bus.targets[idx].line), lineText);
-        outConfig.bus.targets[idx].destination[0] = '\0';
+        resetArrivalState(outConfig.bus.targets[idx]);
 
         idx++;
     }
 
     outConfig.bus.targetCount = idx;
-    return true;
+    return kOk;
 }
 
-bool parseBuildInfoConfig(RuntimeConfig& outConfig, BuildState concreteState, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult parseBuildInfoConfig(RuntimeConfig& outConfig, BuildState concreteState) {
     File buildInfoFile = LittleFS.open("/build_info.json", "r");
     if (!buildInfoFile) {
-        setError(errorBuffer, errorBufferLen, "Missing /build_info.json");
-        return false;
+        return failure("Missing /build_info.json");
     }
 
-    StaticJsonDocument<4096> buildInfoDoc;
+    // Heap, not stack. As a StaticJsonDocument this put 4 KB into the frame of
+    // whichever caller reached it, and the worst of those is a portal form
+    // submission: WebServer handler chain, this parser and LittleFS all nested on
+    // the same stack. That combination overran loopTask and rebooted the board.
+    // The heap has room to spare here (~200 KB free while the portal is up).
+    DynamicJsonDocument buildInfoDoc(4096);
     DeserializationError buildInfoErr = deserializeJson(buildInfoDoc, buildInfoFile);
     buildInfoFile.close();
 
     if (buildInfoErr) {
-        setError(errorBuffer, errorBufferLen, "Invalid build_info.json");
-        return false;
+        return failure("Invalid build_info.json");
     }
 
     JsonVariantConst versionValue = buildInfoDoc["version"];
     if (versionValue.isNull()) {
-        setError(errorBuffer, errorBufferLen, "build_info.json missing version");
-        return false;
+        return failure("build_info.json missing version");
     }
 
     int version = versionValue.as<int>();
     if (version != CONFIG_SCHEMA_VERSION) {
-        setError(errorBuffer, errorBufferLen, "build_info.json schema version mismatch");
-        return false;
+        return failure("build_info.json schema version mismatch");
     }
 
     JsonObjectConst buildInfoObj = buildInfoDoc.as<JsonObjectConst>();
     switch (concreteState) {
-        case BUS_BY_STATION:
-        case NY_METRO_BY_STATION:
-            return parseBuildInfoStationMode(outConfig, buildInfoObj, errorBuffer, errorBufferLen);
-        case BUS_BY_LINES:
-            return parseBuildInfoLinesMode(outConfig, buildInfoObj, errorBuffer, errorBufferLen);
-        case USE_CURRENT_BUILD:
-            setError(errorBuffer, errorBufferLen, "Concrete state cannot be USE_CURRENT_BUILD");
-            return false;
+        case BuildState::BUS_BY_STATION:
+        case BuildState::NY_METRO_BY_STATION:
+            return parseBuildInfoStationMode(outConfig, buildInfoObj);
+        case BuildState::BUS_BY_LINES:
+            return parseBuildInfoLinesMode(outConfig, buildInfoObj);
+        case BuildState::USE_CURRENT_BUILD:
+            return failure("Concrete state cannot be USE_CURRENT_BUILD");
         default:
-            setError(errorBuffer, errorBufferLen, "Unknown build state for build_info parsing");
-            return false;
+            return failure("Unknown build state for build_info parsing");
     }
 }
 
 }  // namespace
 
-bool loadRuntimeConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen) {
+ConfigResult loadRuntimeConfig(RuntimeConfig& outConfig) {
     if (!LittleFS.begin(false)) {
-        setError(errorBuffer, errorBufferLen, "LittleFS mount failed");
-        return false;
+        return failure("LittleFS mount failed");
     }
 
-    if (!parseWifiConfig(outConfig, errorBuffer, errorBufferLen)) {
-        return false;
+    ConfigResult result = parseWifiConfig(outConfig);
+    if (!result.ok) {
+        return result;
     }
 
-    if (!parseBuildStateConfig(outConfig, errorBuffer, errorBufferLen)) {
-        return false;
+    result = parseBuildStateConfig(outConfig);
+    if (!result.ok) {
+        return result;
     }
 
-    if (!resolveConcreteBuildState(outConfig, outConfig.concreteBuildState, errorBuffer, errorBufferLen)) {
-        return false;
+    result = resolveConcreteBuildState(outConfig, outConfig.concreteBuildState);
+    if (!result.ok) {
+        return result;
     }
 
-    if (!parseBuildInfoConfig(outConfig, outConfig.concreteBuildState, errorBuffer, errorBufferLen)) {
-        return false;
-    }
-
-    return true;
+    return parseBuildInfoConfig(outConfig, outConfig.concreteBuildState);
 }
 
-bool resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState, char* errorBuffer, size_t errorBufferLen) {
-    if (config.buildState != USE_CURRENT_BUILD) {
+ConfigResult validateBuildInfoConfig(BuildState concreteState) {
+    if (!LittleFS.begin(false)) {
+        return failure("LittleFS mount failed");
+    }
+
+    // Parse into a throwaway config: only the verdict matters here, and reusing
+    // the real parser keeps this check honest as the payload format evolves.
+    RuntimeConfig scratch;
+    return parseBuildInfoConfig(scratch, concreteState);
+}
+
+ConfigResult resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState) {
+    if (config.buildState != BuildState::USE_CURRENT_BUILD) {
         outState = config.buildState;
-        return true;
+        return kOk;
     }
 
-    BuildState persistedConcreteState = BUS_BY_STATION;
+    BuildState persistedConcreteState = BuildState::BUS_BY_STATION;
     if (!loadLastConcreteBuildStateConfig(persistedConcreteState)) {
-        setError(errorBuffer, errorBufferLen, "Missing /last_concrete_build_state.json");
-        return false;
+        return failure("Missing /last_concrete_build_state.json");
     }
 
-    if (persistedConcreteState == USE_CURRENT_BUILD) {
-        setError(errorBuffer, errorBufferLen, "last_concrete_build_state.json cannot be USE_CURRENT_BUILD");
-        return false;
+    if (persistedConcreteState == BuildState::USE_CURRENT_BUILD) {
+        return failure("last_concrete_build_state.json cannot be USE_CURRENT_BUILD");
     }
 
     outState = persistedConcreteState;
-    return true;
+    return kOk;
 }
 
 const char* configErrorToDisplayMessage(const char* configError) {
@@ -306,9 +287,6 @@ const char* configErrorToDisplayMessage(const char* configError) {
     }
     if (strstr(configError, "targets") != nullptr) {
         return "Targets Error";
-    }
-    if (strstr(configError, "lineNumbers") != nullptr) {
-        return "Lines Error";
     }
 
     return "Config Error";

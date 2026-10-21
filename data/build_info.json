@@ -1,11 +1,5 @@
 {
   "version": 1,
-  "stationId": "1570",
-  "lineNumbers": [
-    "7",
-    "19",
-    "72"
-  ],
   "targets": [
     {
       "stationId": "1570",

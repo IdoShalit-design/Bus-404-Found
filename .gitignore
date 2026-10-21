@@ -9,6 +9,9 @@ data/wifi_credentials.json
 # Heap log from UDP listener
 heap_log.txt
 
+# Log from serial_monitor.py
+serial_log.txt
+
 # Compiled Object files
 *.slo
 *.lo
@@ -53,5 +56,16 @@ heap_log.txt
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+.vscode/settings.json
 
 _codeql_detected_source_root
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# auto-fix-issues run logs (session ids, progress, driver output)
+.auto_fix_logs/
+
+# Claude Code local config
+.claude/

@@ -46,21 +46,34 @@
 // --- Layout: X cursor positions per row (depends on number of panels) ---
 // 2-panel layout (128px wide): generous spacing
 // 1-panel layout (64px wide):  compact spacing
+// A row shows two arrivals, so the minutes zone is two columns wide, separated
+// by a comma. The imminent arrival sits on the right, nearest the bus icon, and
+// the one after it on the left, so the pair reads outward as time runs out.
+// Each column is 12px (two digits) and the comma between them is one 6px glyph.
 #if PANEL_CHAIN == 2
-    #define XCOL_LINE_NUM    0    // Bus line number (far left)
-    #define XCOL_DEST        14   // Destination text
-    #define XCOL_MINUTES     110   // Minutes remaining
-    #define XCOL_IMAGE_START 122  // Reserved for image (last 12px)
+    #define XCOL_LINE_NUM      0    // Bus line number (far left)
+    #define XCOL_DEST          14   // Destination text
+    #define XCOL_MINUTES_LATER 88   // Minutes to the arrival after the next one
+    #define XCOL_MINUTES_COMMA 100  // Comma separating the two arrivals
+    #define XCOL_MINUTES       108  // Minutes to the next arrival
+    #define XCOL_IMAGE_START   122  // Reserved for image (last 6px)
 #else
-    #define XCOL_LINE_NUM    0    // Bus line number (far left)
-    #define XCOL_DEST        14   // Destination text
-    #define XCOL_MINUTES     48   // Minutes remaining
-    #define XCOL_IMAGE_START 58   // Reserved for image (last 6px)
+    #define XCOL_LINE_NUM      0    // Bus line number (far left)
+    #define XCOL_DEST          14   // Destination text
+    #define XCOL_MINUTES_LATER 28   // Minutes to the arrival after the next one
+    #define XCOL_MINUTES_COMMA 40   // Comma separating the two arrivals
+    #define XCOL_MINUTES       46   // Minutes to the next arrival
+    #define XCOL_IMAGE_START   58   // Reserved for image (last 6px)
 #endif
 
 // GFX default font at textSize(1): 6px per character (5px glyph + 1px spacing)
 #define FONT_CHAR_W      6
-#define MAX_DEST_CHARS   ((XCOL_MINUTES - XCOL_DEST) / FONT_CHAR_W)
+// ...and 8px per line, which is also its baseline-to-baseline advance.
+#define FONT_LINE_H      8
+// What actually fits on one line of showMessage(). A status string longer than
+// this is clipped on the panel, so keep messages within it or split them on '\n'.
+#define MAX_MESSAGE_CHARS (DISPLAY_WIDTH / FONT_CHAR_W)
+#define MAX_DEST_CHARS   ((XCOL_MINUTES_LATER - XCOL_DEST) / FONT_CHAR_W)
 
 // --- Icon dimensions (fits inside the reserved image zone at row end) ---
 #define ICON_W 8   // pixels wide  (replace with your bitmap width)
@@ -118,6 +131,16 @@ private:
      * @param row The row index (0-based) for vertical positioning.
      */
     void drawBusRow(const BusTarget& target, int row);
+
+    /**
+     * @brief Draws one arrival's minutes (or the arriving-now icon at zero).
+     * @param x       Left X pixel of this arrival's column.
+     * @param y       Top Y pixel of the row.
+     * @param minutes Minutes remaining; <= 0 renders the arriving-now icon.
+     * @param isRealtime True for live GPS data, false for scheduled.
+     * @return The colour the arrival was drawn in, so the caller can match it.
+     */
+    uint16_t drawArrivalMinutes(int x, int y, int minutes, bool isRealtime);
 
     /**
      * @brief Draws a monochrome bitmap icon at (x, y) in the given color.

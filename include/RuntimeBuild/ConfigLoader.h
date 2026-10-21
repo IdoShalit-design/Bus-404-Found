@@ -5,11 +5,9 @@
 #include "Config.h"
 #include "RuntimeBuild/Builder.h"
 
+// Station/line/destination lengths live in Structs.h, shared with BusTarget.
 constexpr size_t MAX_WIFI_SSID_LEN = 33;
 constexpr size_t MAX_WIFI_PASSWORD_LEN = 65;
-constexpr size_t MAX_STATION_ID_LEN = 24;
-constexpr size_t MAX_LINE_LEN = 16;
-constexpr size_t MAX_DESTINATION_LEN = 48;
 constexpr uint8_t CONFIG_SCHEMA_VERSION = 1;
 
 struct WifiConfig {
@@ -17,14 +15,10 @@ struct WifiConfig {
     char password[MAX_WIFI_PASSWORD_LEN];
 };
 
-struct BusTargetConfig {
-    char stationId[MAX_STATION_ID_LEN];
-    char line[MAX_LINE_LEN];
-    char destination[MAX_DESTINATION_LEN];
-};
-
+// BusTarget owns its strings, so parsed config doubles as the live working set;
+// no separate config-side target struct or copy step is needed.
 struct BusConfig {
-    BusTargetConfig targets[MAX_RUNTIME_TARGETS];
+    BusTarget targets[MAX_RUNTIME_TARGETS];
     int targetCount;
 };
 
@@ -36,17 +30,26 @@ struct RuntimeConfig {
 };
 
 /**
+ * @brief Outcome of a config load or resolve step.
+ *
+ * Allocation-free: `error` points at a string literal with static storage
+ * duration, so callers need no buffer and the pointer stays valid.
+ */
+struct ConfigResult {
+    bool ok;
+    const char* error;  // nullptr when ok is true
+};
+
+/**
  * @brief Loads and validates runtime configuration from LittleFS JSON files.
  *
  * Reads Wi-Fi credentials, requested build state, resolves concrete build state,
  * and parses mode-specific build info payload into outConfig.
  *
  * @param outConfig Destination config object.
- * @param errorBuffer Optional output buffer for short human-readable error text.
- * @param errorBufferLen Size of errorBuffer in bytes.
- * @return true when all config sources are valid and loaded, false on any error.
+ * @return ok when all config sources are valid and loaded; otherwise error text.
  */
-bool loadRuntimeConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t errorBufferLen);
+ConfigResult loadRuntimeConfig(RuntimeConfig& outConfig);
 
 /**
  * @brief Resolves requested build state into an executable concrete build state.
@@ -57,11 +60,23 @@ bool loadRuntimeConfig(RuntimeConfig& outConfig, char* errorBuffer, size_t error
  *
  * @param config Source runtime config containing requested buildState.
  * @param outState Resolved concrete state on success.
- * @param errorBuffer Optional output buffer for short human-readable error text.
- * @param errorBufferLen Size of errorBuffer in bytes.
- * @return true when resolution succeeds, false when persisted fallback is missing/invalid.
+ * @return ok when resolution succeeds; error when the persisted fallback is
+ *         missing or invalid.
  */
-bool resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState, char* errorBuffer, size_t errorBufferLen);
+ConfigResult resolveConcreteBuildState(const RuntimeConfig& config, BuildState& outState);
+
+/**
+ * @brief Checks that /build_info.json holds a usable payload for a concrete state.
+ *
+ * Runs the same parser boot uses, so a caller can tell in advance whether the
+ * next boot would accept the persisted build info. Intended for the provisioning
+ * portal, which must not persist a USE_CURRENT_BUILD selection when there is no
+ * previous build to fall back on.
+ *
+ * @param concreteState Concrete (non-USE_CURRENT_BUILD) state to validate against.
+ * @return ok when the persisted build info parses for that state; otherwise error text.
+ */
+ConfigResult validateBuildInfoConfig(BuildState concreteState);
 
 /**
  * @brief Maps internal config error text to short display-friendly user messages.

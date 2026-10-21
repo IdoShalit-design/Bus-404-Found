@@ -7,10 +7,41 @@
  */
 
 #include "Display/HUB75Display.h"
+
+#include <cstring>
+
 #include "Structs.h"
 
 // Row height for each bus entry (pixels)
 static const int ROW_HEIGHT = DISPLAY_HEIGHT / 3 + 1;  // 10px per row for 3 targets
+
+// Extra pixels the first and last line of a multi-line message move away from
+// the centre, one up and one down.
+static const int kEdgeLineSpread = 2;
+
+// Number of '\n'-separated lines in msg. A trailing newline does not open a new
+// line, so "a\n" is one line, matching how the block height is then centred.
+static int countLines(const char* msg) {
+    int lines = 1;
+    for (const char* cursor = msg; *cursor != '\0'; cursor++) {
+        if (*cursor == '\n' && *(cursor + 1) != '\0') {
+            lines++;
+        }
+    }
+    return lines;
+}
+
+// Logs one arrival the way the panel shows it: minutes <= 0 is drawn as the
+// arriving icon, not as a number.
+static void logArrival(const char* eta, int minutes, bool isRealtime) {
+    Serial.printf("%s ", (eta != nullptr && eta[0] != '\0') ? eta : "--:--");
+    if (minutes <= 0) {
+        Serial.print("(arriving");
+    } else {
+        Serial.printf("(%d min", minutes);
+    }
+    Serial.printf(", %s)", isRealtime ? "live" : "scheduled");
+}
 
 // =========================================
 // Constructor & Destructor
@@ -85,6 +116,7 @@ void HUB75Display::render(const BusTarget* targets, int count) {
 
     // Render each bus target as a row
     int maxRows = (count < 3) ? count : 3;  // Max 3 rows on 32px height
+    Serial.printf("[HUB75Display] Screen update, %d row(s):\n", maxRows);
     for (int i = 0; i < maxRows; i++) {
         drawBusRow(targets[i], i);
     }
@@ -104,14 +136,69 @@ void HUB75Display::setBrightness(uint8_t brightness) {
 
 void HUB75Display::showMessage(const char* msg) {
     if (!_matrix) return;
+
+    // Newlines logged as "\n" so a multi-line message stays one log line.
+    Serial.print("[HUB75Display] Screen message: \"");
+    for (const char* cursor = msg; *cursor != '\0'; cursor++) {
+        if (*cursor == '\n') {
+            Serial.print("\\n");
+        } else {
+            Serial.print(*cursor);
+        }
+    }
+    Serial.println("\"");
+
     _matrix->fillScreen(0);
     _matrix->setTextSize(1);
     _matrix->setTextColor(_matrix->color565(255, 255, 255));
-    int len = strlen(msg);
-    int x = (DISPLAY_WIDTH - len * FONT_CHAR_W) / 2;
-    int y = (DISPLAY_HEIGHT - 8) / 2;  // 8px font height
-    _matrix->setCursor(x, y);
-    _matrix->print(msg);
+
+    // Each '\n'-separated line is positioned on its own. print() would keep the
+    // whole block on one cursor origin, so a wide first line pushes every later
+    // line off the left edge with it -- which is how the trailing lines of the
+    // portal's join screen, the ones the user cannot get anywhere else, ended up
+    // invisible.
+    const int lineCount = countLines(msg);
+    const int blockHeight = lineCount * FONT_LINE_H;
+
+    // Top-aligned rather than clipped-centred when the text is taller than the
+    // panel: losing the last line beats losing the first.
+    int y = blockHeight < DISPLAY_HEIGHT ? (DISPLAY_HEIGHT - blockHeight) / 2 : 0;
+
+    // Push the first line up and the last line down by kEdgeLineSpread, so a
+    // multi-line block (the portal's "join this AP" screen) uses the spare rows
+    // at the top and bottom instead of bunching up in the middle. Only when the
+    // extra rows exist, otherwise the outer lines would be clipped.
+    const bool spreadEdges =
+        lineCount > 1 && y >= kEdgeLineSpread &&
+        (y + blockHeight + kEdgeLineSpread) <= DISPLAY_HEIGHT;
+
+    const char* lineStart = msg;
+    int lineIndex = 0;
+    while (lineStart != nullptr) {
+        const char* lineEnd = strchr(lineStart, '\n');
+        const int len = lineEnd != nullptr ? static_cast<int>(lineEnd - lineStart)
+                                           : static_cast<int>(strlen(lineStart));
+
+        // Clamp instead of centring when a line is too wide, so it is clipped on
+        // the right only and its first characters always survive.
+        const int width = len * FONT_CHAR_W;
+        const int x = width < DISPLAY_WIDTH ? (DISPLAY_WIDTH - width) / 2 : 0;
+
+        int yOffset = 0;
+        if (spreadEdges) {
+            if (lineIndex == 0) yOffset = -kEdgeLineSpread;
+            else if (lineIndex == lineCount - 1) yOffset = kEdgeLineSpread;
+        }
+
+        _matrix->setCursor(x, y + yOffset);
+        for (int i = 0; i < len; i++) {
+            _matrix->write(lineStart[i]);
+        }
+
+        y += FONT_LINE_H;
+        lineIndex++;
+        lineStart = lineEnd != nullptr ? lineEnd + 1 : nullptr;
+    }
 }
 
 // =========================================
@@ -167,6 +254,29 @@ void HUB75Display::drawIcon(int x, int y, uint16_t color, const uint8_t* bitmap)
     }
 }
 
+uint16_t HUB75Display::drawArrivalMinutes(int x, int y, int minutes, bool isRealtime) {
+    const uint16_t color = isRealtime ? COLOR_REALTIME : COLOR_SCHEDULED;
+
+    if (minutes <= 0) {
+        // Bus is arriving now (or the clock is unset, which reads the same way)
+        drawIcon(x, y, color, ARRIVING_ICON);
+        return color;
+    }
+
+    _matrix->setTextColor(color);
+    _matrix->setCursor(x, y + 1);
+    _matrix->printf("%d", minutes);
+
+    // draw: '
+    if (minutes < 10) {
+        int currentX = _matrix->getCursorX();
+        _matrix->drawPixel(currentX + 1, y + 1, color);
+        _matrix->drawPixel(currentX + 1, y + 2, color);
+    }
+
+    return color;
+}
+
 void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     int y = row * ROW_HEIGHT;
 
@@ -187,34 +297,51 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     _matrix->setCursor(XCOL_DEST, y + 1);
     _matrix->print(destStr);
 
-    // --- Minutes remaining ---
-    // No data: red "--"
-    // Positive minutes: green (realtime) or yellow (scheduled)
+    // --- Minutes remaining, next two arrivals side by side ---
+    // No data: red "-"
+    // Otherwise each arrival gets its own colour: green (realtime) or yellow
+    // (scheduled), so the two can disagree on the same row. The imminent one is
+    // in the right column, the one after it in the left, e.g. "12, 4".
     uint16_t minutesColor;
-    
+
     if (target.no_data) {
         minutesColor = COLOR_NO_DATA;
         _matrix->setTextColor(minutesColor);
         _matrix->setCursor(XCOL_MINUTES, y + 1);
         _matrix->print("-");
-    } else if(target.minutes_remaining > 0) {
-        minutesColor  = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
-        _matrix->setTextColor(minutesColor);
-        _matrix->setCursor(XCOL_MINUTES, y + 1);
-        _matrix->printf("%d", target.minutes_remaining);
-    }
-    else{
-        // minutes_remaining == 0: bus is arriving now
-        minutesColor = target.is_realtime ? COLOR_REALTIME : COLOR_SCHEDULED;
-        drawIcon(XCOL_MINUTES, y, minutesColor, ARRIVING_ICON);
-    }
-    
-    //draw: '
-    if(target.minutes_remaining > 0 && target.minutes_remaining < 10 && !target.no_data) {
-        int currentX = _matrix->getCursorX();
-        _matrix->drawPixel(currentX + 1, y + 1, minutesColor);
-        _matrix->drawPixel(currentX + 1, y + 2, minutesColor);
+    } else {
+        minutesColor = drawArrivalMinutes(XCOL_MINUTES, y, target.minutes_remaining,
+                                          target.is_realtime);
+
+        // A station may list only one upcoming arrival for this line; leave the
+        // left column and the comma out rather than repeating the first.
+        if (target.has_next_arrival) {
+            drawArrivalMinutes(XCOL_MINUTES_LATER, y, target.next_minutes_remaining,
+                               target.next_is_realtime);
+
+            // Neutral white: the comma belongs to neither arrival, and the two
+            // it separates may be in different colours.
+            _matrix->setTextColor(COLOR_DEST);
+            _matrix->setCursor(XCOL_MINUTES_COMMA, y + 1);
+            _matrix->print(",");
+        }
     }
 
+    // The bus symbol belongs to the row, not to an arrival: drawn once, in the
+    // colour of the arrival that comes first.
     drawIcon(XCOL_IMAGE_START, y, minutesColor, BUS_ICON);
+
+    // Log what this row shows: the destination as truncated on the panel.
+    Serial.printf("[HUB75Display]   row %d: line %s | %s | ", row, target.line,
+                  destStr.c_str());
+    if (target.no_data) {
+        Serial.print("no data");
+    } else {
+        logArrival(target.last_known_ETA, target.minutes_remaining, target.is_realtime);
+        if (target.has_next_arrival) {
+            Serial.print(", next ");
+            logArrival(target.next_ETA, target.next_minutes_remaining, target.next_is_realtime);
+        }
+    }
+    Serial.println();
 }
