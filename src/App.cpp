@@ -223,19 +223,25 @@ void App::loadConfig() {
 }
 
 void App::connectWifi() {
+    // Modem sleep (the core 3.x default) gave 23-112ms pings at RSSI -46 and
+    // slow NTP/HTTPS. The board runs on mains power, so keep the radio awake.
+    // The setting is stored and re-applied each time the station starts.
+    WiFi.setSleep(false);
     WiFi.mode(WIFI_STA);
+    // This loop does its own retries. With auto-reconnect on, the driver keeps
+    // reconnecting after a failed attempt, and begin() during that is rejected
+    // ("sta is connecting, cannot set config"), so the retry did nothing.
+    WiFi.setAutoReconnect(false);
 
     int wifiAttempt = 0;
     while (WiFi.status() != WL_CONNECTED) {
         wifiAttempt++;
         Serial.printf("[WiFi] Attempt #%d with SSID='%s'\n", wifiAttempt, _runtimeConfig.wifi.ssid);
 
-        // Stop the station, not just disconnect it. After a failed attempt the
-        // driver keeps reconnecting on its own, and begin() during that is
-        // rejected ("sta is connecting, cannot set config"), so the retry did
-        // nothing. begin() starts the station again.
-        WiFi.disconnect(true);
-        delay(100);
+        // Cancel any attempt still in progress, and let the driver settle
+        // before begin() writes the config.
+        WiFi.disconnect();
+        delay(200);
 #if SIM_WIFI
         // See ensureWiFiConnected(): the pinned channel skips the scan phase.
         WiFi.begin(_runtimeConfig.wifi.ssid, _runtimeConfig.wifi.password, SIM_WIFI_CHANNEL);
@@ -262,6 +268,9 @@ void App::connectWifi() {
         showMessage(failMessage);
         delay(kWifiRetryMessageMs);
     }
+
+    // Once connected, let the driver recover from drops on its own again.
+    WiFi.setAutoReconnect(true);
 
     Serial.printf("Connected! IP: %s, RSSI: %d dBm\n",
                   WiFi.localIP().toString().c_str(), WiFi.RSSI());

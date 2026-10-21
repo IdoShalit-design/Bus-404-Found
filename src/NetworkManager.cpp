@@ -77,10 +77,10 @@ bool ensureWiFiConnected(const char* ssid, const char* password, unsigned long t
     }
 
     Serial.println("[WiFi] Disconnected, attempting reconnect...");
-    // Stop the station so the driver's own reconnect loop cannot reject begin()
-    // ("sta is connecting, cannot set config"). See App::connectWifi().
-    WiFi.disconnect(true);
-    delay(100);
+    // Cancel any attempt still in progress, and let the driver settle before
+    // begin() writes the config ("sta is connecting, cannot set config").
+    WiFi.disconnect();
+    delay(200);
 
     // The password is reported as a length, not a value. This log is read off a
     // terminal and routinely pasted into chats and issue trackers while
