@@ -112,15 +112,18 @@ bool CurlBusFetcherByStation::loadNextArrivals(const char* stationId) {
     filter["visits"][stationId][0]["location"] = true;
     filter["visits"][stationId][0]["static_info"]["route"]["destination"]["name"]["EN"] = true;
 
-    _doc->clear();
-    DeserializationError error = deserializeJson(
-        *_doc,
-        http.getStream(),
-        DeserializationOption::Filter(filter),
-        DeserializationOption::NestingLimit(12));
+    // Read the full body first; parsing straight from getStream() stopped early on core 3.x.
+    String payload = http.getString();
 
     http.end();
     _secureClient.stop();
+
+    _doc->clear();
+    DeserializationError error = deserializeJson(
+        *_doc,
+        payload,
+        DeserializationOption::Filter(filter),
+        DeserializationOption::NestingLimit(12));
 
     if (error) {
         return false;

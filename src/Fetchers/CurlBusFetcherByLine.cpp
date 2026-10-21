@@ -215,22 +215,29 @@ bool CurlBusFetcherByLine::update(BusTarget& bus) {
     filter["visits"][stationId][0]["static_info"]["route"]["destination"]["name"]["EN"] = true;  // Destination name
     
     // =========================================
-    // Step 3: Parse JSON directly from HTTP stream (no buffering)
+    // Step 3: Read the full body, then parse it
     // =========================================
+    // Parsing straight from http.getStream() stopped early on core 3.x
+    // (IncompleteInput after ~1s). getString() reads the body in blocks and
+    // honors Content-Length / chunked encoding. The ~30-40KB body goes to PSRAM.
+    const int expectedSize = http.getSize();
+    String payload = http.getString();
+
+    http.end();
+    _secureClient.stop();  // Always close TLS after request to prevent stale connections
+
     _doc->clear();
-    
+
     DeserializationError error = deserializeJson(
-        *_doc, 
-        http.getStream(),
+        *_doc,
+        payload,
         DeserializationOption::Filter(filter),
         DeserializationOption::NestingLimit(12)
     );
-    
-    http.end();
-    _secureClient.stop();  // Always close TLS after request to prevent stale connections
-    
+
     if (error) {
-        Serial.printf("[CurlBusFetcherByLine] JSON parse failed: %s\n", error.c_str());
+        Serial.printf("[CurlBusFetcherByLine] JSON parse failed: %s (got %u of %d bytes)\n",
+                      error.c_str(), payload.length(), expectedSize);
         return false;
     }
     
