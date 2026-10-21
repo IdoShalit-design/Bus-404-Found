@@ -31,6 +31,18 @@ static int countLines(const char* msg) {
     return lines;
 }
 
+// Logs one arrival the way the panel shows it: minutes <= 0 is drawn as the
+// arriving icon, not as a number.
+static void logArrival(const char* eta, int minutes, bool isRealtime) {
+    Serial.printf("%s ", (eta != nullptr && eta[0] != '\0') ? eta : "--:--");
+    if (minutes <= 0) {
+        Serial.print("(arriving");
+    } else {
+        Serial.printf("(%d min", minutes);
+    }
+    Serial.printf(", %s)", isRealtime ? "live" : "scheduled");
+}
+
 // =========================================
 // Constructor & Destructor
 // =========================================
@@ -104,6 +116,7 @@ void HUB75Display::render(const BusTarget* targets, int count) {
 
     // Render each bus target as a row
     int maxRows = (count < 3) ? count : 3;  // Max 3 rows on 32px height
+    Serial.printf("[HUB75Display] Screen update, %d row(s):\n", maxRows);
     for (int i = 0; i < maxRows; i++) {
         drawBusRow(targets[i], i);
     }
@@ -123,6 +136,18 @@ void HUB75Display::setBrightness(uint8_t brightness) {
 
 void HUB75Display::showMessage(const char* msg) {
     if (!_matrix) return;
+
+    // Newlines logged as "\n" so a multi-line message stays one log line.
+    Serial.print("[HUB75Display] Screen message: \"");
+    for (const char* cursor = msg; *cursor != '\0'; cursor++) {
+        if (*cursor == '\n') {
+            Serial.print("\\n");
+        } else {
+            Serial.print(*cursor);
+        }
+    }
+    Serial.println("\"");
+
     _matrix->fillScreen(0);
     _matrix->setTextSize(1);
     _matrix->setTextColor(_matrix->color565(255, 255, 255));
@@ -305,4 +330,18 @@ void HUB75Display::drawBusRow(const BusTarget& target, int row) {
     // The bus symbol belongs to the row, not to an arrival: drawn once, in the
     // colour of the arrival that comes first.
     drawIcon(XCOL_IMAGE_START, y, minutesColor, BUS_ICON);
+
+    // Log what this row shows: the destination as truncated on the panel.
+    Serial.printf("[HUB75Display]   row %d: line %s | %s | ", row, target.line,
+                  destStr.c_str());
+    if (target.no_data) {
+        Serial.print("no data");
+    } else {
+        logArrival(target.last_known_ETA, target.minutes_remaining, target.is_realtime);
+        if (target.has_next_arrival) {
+            Serial.print(", next ");
+            logArrival(target.next_ETA, target.next_minutes_remaining, target.next_is_realtime);
+        }
+    }
+    Serial.println();
 }
