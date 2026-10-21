@@ -9,6 +9,9 @@ data/wifi_credentials.json
 # Heap log from UDP listener
 heap_log.txt
 
+# Log from serial_monitor.py
+serial_log.txt
+
 # Compiled Object files
 *.slo
 *.lo
