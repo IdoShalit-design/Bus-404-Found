@@ -100,6 +100,12 @@ void App::setup() {
 
     initDisplay();
 
+    // Modem sleep (the core 3.x default) gave 23-112ms pings at RSSI -46 and
+    // slow NTP/HTTPS. The board runs on mains power, so keep the radio awake.
+    // Set before the portal so its STA join (tryStaConnect) runs awake too;
+    // the setting is stored and re-applied each time the station starts.
+    WiFi.setSleep(false);
+
     // SKIP_PORTAL exists for simulation and for log-only debugging of the fetch
     // path. The portal blocks boot for up to kNoClientTimeoutMs waiting for a
     // client that, in a simulator, cannot arrive: Wokwi's gateway documents no
@@ -223,10 +229,6 @@ void App::loadConfig() {
 }
 
 void App::connectWifi() {
-    // Modem sleep (the core 3.x default) gave 23-112ms pings at RSSI -46 and
-    // slow NTP/HTTPS. The board runs on mains power, so keep the radio awake.
-    // The setting is stored and re-applied each time the station starts.
-    WiFi.setSleep(false);
     WiFi.mode(WIFI_STA);
     // This loop does its own retries. With auto-reconnect on, the driver keeps
     // reconnecting after a failed attempt, and begin() during that is rejected
