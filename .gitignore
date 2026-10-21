@@ -12,6 +12,10 @@ heap_log.txt
 # Log from serial_monitor.py
 serial_log.txt
 
+# Log and report from hil_test.py
+hil_serial_log.txt
+hil_report.md
+
 # Compiled Object files
 *.slo
 *.lo
