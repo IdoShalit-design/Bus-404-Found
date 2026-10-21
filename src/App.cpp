@@ -230,7 +230,12 @@ void App::connectWifi() {
         wifiAttempt++;
         Serial.printf("[WiFi] Attempt #%d with SSID='%s'\n", wifiAttempt, _runtimeConfig.wifi.ssid);
 
-        WiFi.disconnect();
+        // Stop the station, not just disconnect it. After a failed attempt the
+        // driver keeps reconnecting on its own, and begin() during that is
+        // rejected ("sta is connecting, cannot set config"), so the retry did
+        // nothing. begin() starts the station again.
+        WiFi.disconnect(true);
+        delay(100);
 #if SIM_WIFI
         // See ensureWiFiConnected(): the pinned channel skips the scan phase.
         WiFi.begin(_runtimeConfig.wifi.ssid, _runtimeConfig.wifi.password, SIM_WIFI_CHANNEL);
