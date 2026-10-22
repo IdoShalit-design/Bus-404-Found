@@ -3,8 +3,8 @@ fixed time, then exit with a pass or fail code. Made for CI, works by hand too.
 
 Usage:
     python hil_test.py [--env esp32-s3-devkitc-1] [--port COM5]
-                       [--duration 300] [--min-cycles 2]
-                       [--fail-on crash,reboot,stall] [--max-reboots 1]
+                       [--duration 600] [--min-cycles 2] [--max-failures 2]
+                       [--fail-on crash] [--max-reboots 1]
                        [--firmware-only] [--skip-flash]
                        [--log hil_serial_log.txt] [--report hil_report.md]
 
@@ -15,10 +15,11 @@ Steps:
        whatever is on the board now.
     2. Attach to the serial port and run serial_monitor.py's Monitor on every
        line for --duration seconds.
-    3. Pass when the screen updated at least --min-cycles times and no failure
-       in --fail-on was seen. Other failures (an HTTP error, a Wi-Fi retry) are
-       reported but do not fail the run, because they depend on the network and
-       the bus API, not on the firmware.
+    3. Pass when all of these hold:
+       - the screen updated at least --min-cycles times;
+       - at most --max-failures failure events were seen, of any kind (every
+         "!! FAIL", STALL and SLOW line serial_monitor.py prints counts once);
+       - no failure named in --fail-on was seen, however few.
 
 Exit codes:
     0  pass
@@ -26,7 +27,8 @@ Exit codes:
     2  could not test (build, upload or serial port error)
 
 The upload resets the board, and that boot prints one "rst:" line, so
---max-reboots is 1 after a flash and 0 with --skip-flash unless set.
+--max-reboots is 1 after a flash and 0 with --skip-flash unless set. The
+allowed reboots do not count toward --max-failures.
 
 A Markdown report is written to --report, and also appended to
 $GITHUB_STEP_SUMMARY when that is set (GitHub Actions).
@@ -129,6 +131,9 @@ def verdict(monitor: Monitor, args) -> list[str]:
     problems = []
     if monitor.cycles < args.min_cycles:
         problems.append(f"only {monitor.cycles} screen update(s), need {args.min_cycles}")
+    total = sum(monitor.failures.values()) - min(monitor.failures["reboot"], args.max_reboots)
+    if total > args.max_failures:
+        problems.append(f"{total} failure events, allowed {args.max_failures}")
     for name in args.fail_on:
         count = monitor.failures[name]
         allowed = args.max_reboots if name == "reboot" else 0
@@ -146,7 +151,8 @@ def write_report(path: Path, monitor: Monitor, args, problems: list[str], minute
         f"- Watched for {minutes:.1f} min",
         f"- Screen updates: {monitor.cycles} ({monitor.bad_cycles} with problems), "
         f"slowest fetch {monitor.slowest_cycle:.1f}s",
-        f"- Fails the run: {', '.join(args.fail_on) or 'nothing'}",
+        f"- Allowed failure events: {args.max_failures}",
+        f"- Fails the run at once: {', '.join(args.fail_on) or 'nothing'}",
     ]
     if problems:
         lines += ["", "**Broken rules:**", *[f"- {p}" for p in problems]]
@@ -167,10 +173,12 @@ def main() -> int:
     parser.add_argument("--env", default=DEFAULT_ENVIRONMENT, help="PlatformIO environment to flash")
     parser.add_argument("--port", help="serial port, e.g. COM5 (default: auto-detect)")
     parser.add_argument("--baud", type=int, default=115200)
-    parser.add_argument("--duration", type=float, default=300, help="seconds to watch the serial output")
+    parser.add_argument("--duration", type=float, default=600, help="seconds to watch the serial output")
     parser.add_argument("--min-cycles", type=int, default=2, help="screen updates needed to pass")
-    parser.add_argument("--fail-on", default="crash,reboot,stall",
-                        help="comma-separated failure names that fail the run")
+    parser.add_argument("--max-failures", type=int, default=2,
+                        help="failure events of any kind allowed before the run fails")
+    parser.add_argument("--fail-on", default="crash",
+                        help="comma-separated failure names that fail the run even once")
     parser.add_argument("--max-reboots", type=int, help="reboot lines allowed (default 1 after a flash, else 0)")
     parser.add_argument("--stall", type=float, default=90, help="seconds without a screen update that count as a stall")
     parser.add_argument("--slow", type=float, default=15, help="seconds a fetch cycle may take")

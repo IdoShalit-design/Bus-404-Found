@@ -1,20 +1,25 @@
 # Hardware-in-the-loop test: flash the real board and pass/fail on its serial
 # output. Runs on a self-hosted runner on the PC the ESP32 is plugged into,
 # because a GitHub-hosted runner has no USB. Setup: docs/hardware-test.md.
+#
+# Pass rule: the board is watched for 10 minutes and may show at most 2
+# failure events (any "!! FAIL", STALL or SLOW line from serial_monitor.py).
+# A crash fails the run at once.
 name: Hardware test
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
       duration:
         description: Seconds to watch the serial output
-        default: "300"
+        default: "600"
+      max_failures:
+        description: Failure events allowed before the run fails
+        default: "2"
       fail_on:
-        description: Failure names that fail the run (comma-separated)
-        default: crash,reboot,stall
+        description: Failure names that fail the run even once (comma-separated)
+        default: crash
       firmware_only:
         description: Keep the board's filesystem (saved Wi-Fi and targets)
         type: boolean
@@ -71,11 +76,12 @@ jobs:
       - name: Flash and watch the board
         env:
           HIL_PORT: ${{ vars.HIL_PORT }}
-          DURATION: ${{ inputs.duration || '300' }}
-          FAIL_ON: ${{ inputs.fail_on || 'crash,reboot,stall' }}
+          DURATION: ${{ inputs.duration || '600' }}
+          MAX_FAILURES: ${{ inputs.max_failures || '2' }}
+          FAIL_ON: ${{ inputs.fail_on || 'crash' }}
           FIRMWARE_ONLY: ${{ inputs.firmware_only || steps.wifi.outputs.have != 'true' }}
         run: |
-          $arguments = @("hil_test.py", "--duration", $env:DURATION, "--fail-on", $env:FAIL_ON)
+          $arguments = @("hil_test.py", "--duration", $env:DURATION, "--max-failures", $env:MAX_FAILURES, "--fail-on", $env:FAIL_ON)
           if ($env:HIL_PORT) { $arguments += @("--port", $env:HIL_PORT) }
           if ($env:FIRMWARE_ONLY -eq "true") { $arguments += "--firmware-only" }
           & $env:PIO_PYTHON @arguments

@@ -19,7 +19,7 @@ Your job is to flash the board, watch its serial output, and give a pass or fail
 ## Approach
 1. Check that nothing holds the port: no open serial monitor, no running upload.
 2. Run the test with PlatformIO's Python, which has pyserial:
-   `~/.platformio/penv/Scripts/python.exe hil_test.py [--duration 300] [--env esp32-s3-devkitc-1] [--firmware-only | --skip-flash]`
+   `~/.platformio/penv/Scripts/python.exe hil_test.py [--duration 600] [--max-failures 2] [--env esp32-s3-devkitc-1] [--firmware-only | --skip-flash]`
    Use `--firmware-only` when `data/wifi_credentials.json` is missing, so the board keeps its saved Wi-Fi.
 3. Read the exit code: 0 pass, 1 fail (firmware broke a rule), 2 could not test (build, upload or port error).
 4. Read `hil_report.md` for the counts and `hil_serial_log.txt` for the lines around each `!! FAIL`.
