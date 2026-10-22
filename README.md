@@ -170,6 +170,9 @@ pio device monitor
 
 Or use the PlatformIO sidebar buttons in VS Code.
 
+To flash the board and check its serial output with a pass/fail result (also
+used by CI on a self-hosted runner), see [docs/hardware-test.md](docs/hardware-test.md).
+
 ---
 
 ## Configuration

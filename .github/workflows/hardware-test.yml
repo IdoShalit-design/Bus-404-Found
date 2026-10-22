@@ -1,0 +1,102 @@
+# Hardware-in-the-loop test: flash the real board and pass/fail on its serial
+# output. Runs on a self-hosted runner on the PC the ESP32 is plugged into,
+# because a GitHub-hosted runner has no USB. Setup: docs/hardware-test.md.
+#
+# Pass rule: the board is watched for 10 minutes and may show at most 2
+# failure events (any "!! FAIL", STALL or SLOW line from serial_monitor.py).
+# A crash fails the run at once.
+name: Hardware test
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: Seconds to watch the serial output
+        default: "600"
+      max_failures:
+        description: Failure events allowed before the run fails
+        default: "2"
+      fail_on:
+        description: Failure names that fail the run even once (comma-separated)
+        default: crash
+      firmware_only:
+        description: Keep the board's filesystem (saved Wi-Fi and targets)
+        type: boolean
+        default: false
+
+# One board, one COM port: never run two of these at once. A queued run waits
+# instead of being cancelled, so every push still gets a result.
+concurrency:
+  group: hardware-test-board
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  hil:
+    # A pull request from a fork would run its code on this PC. Only run
+    # pull requests whose branch is in this repository.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, Windows, esp32]
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      # PlatformIO's own Python has pyserial, and its Scripts folder has pio.
+      - name: Find PlatformIO Python
+        run: |
+          $python = Join-Path $env:USERPROFILE ".platformio\penv\Scripts\python.exe"
+          if (-not (Test-Path $python)) { throw "PlatformIO is not installed for this runner's user: $python" }
+          "PIO_PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "$(Split-Path $python)" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      # data/wifi_credentials.json is gitignored, so a fresh checkout has none.
+      # With the secrets set, write it and flash the full filesystem. Without
+      # them, flash firmware only and keep the credentials already on the board.
+      - name: Write Wi-Fi credentials
+        id: wifi
+        env:
+          WIFI_SSID: ${{ secrets.WIFI_SSID }}
+          WIFI_PASSWORD: ${{ secrets.WIFI_PASSWORD }}
+        run: |
+          if ($env:WIFI_SSID) {
+            @{ version = 1; ssid = $env:WIFI_SSID; password = $env:WIFI_PASSWORD } |
+              ConvertTo-Json | Out-File -FilePath data/wifi_credentials.json -Encoding utf8NoBOM
+            "have=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            Write-Host "No WIFI_SSID secret: flashing firmware only."
+            "have=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+
+      - name: Flash and watch the board
+        env:
+          HIL_PORT: ${{ vars.HIL_PORT }}
+          DURATION: ${{ inputs.duration || '600' }}
+          MAX_FAILURES: ${{ inputs.max_failures || '2' }}
+          FAIL_ON: ${{ inputs.fail_on || 'crash' }}
+          FIRMWARE_ONLY: ${{ inputs.firmware_only || steps.wifi.outputs.have != 'true' }}
+        run: |
+          $arguments = @("hil_test.py", "--duration", $env:DURATION, "--max-failures", $env:MAX_FAILURES, "--fail-on", $env:FAIL_ON)
+          if ($env:HIL_PORT) { $arguments += @("--port", $env:HIL_PORT) }
+          if ($env:FIRMWARE_ONLY -eq "true") { $arguments += "--firmware-only" }
+          & $env:PIO_PYTHON @arguments
+          exit $LASTEXITCODE
+
+      - name: Remove Wi-Fi credentials
+        if: always()
+        run: Remove-Item data/wifi_credentials.json -ErrorAction SilentlyContinue
+
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardware-test-${{ github.run_number }}
+          path: |
+            hil_serial_log.txt
+            hil_report.md
+          if-no-files-found: ignore
