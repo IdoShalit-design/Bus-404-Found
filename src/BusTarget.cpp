@@ -19,6 +19,7 @@ void copyBounded(char* dst, size_t dstSize, const char* src) {
 BusTarget::BusTarget() {
     _stationId[0] = '\0';
     _line[0] = '\0';
+    _direction = Direction::None;
     resetArrivals();
 }
 

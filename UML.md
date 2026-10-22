@@ -38,6 +38,8 @@ classDiagram
             +stationId() const char*
             +line() const char*
             +destination() const char*
+            +direction() Direction
+            +setDirection(Direction) void
             +setArrival(eta, minutes, isRealtime) void
             +setNextArrival(eta, minutes, isRealtime) void
             +clearNextArrival() void

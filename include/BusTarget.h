@@ -1,7 +1,21 @@
 #ifndef BUS_TARGET_H
 #define BUS_TARGET_H
 
+#include <stdint.h>
+
 #include "Structs.h"
+
+/**
+ * @brief Travel direction of a target, as subway feeds report it.
+ *
+ * None is the default: bus stations already imply a direction, so bus
+ * targets never set it.
+ */
+enum class Direction : uint8_t {
+    None,
+    North,
+    South,
+};
 
 /**
  * @brief One tracked bus target: what to look up, plus its latest arrival data.
@@ -21,10 +35,12 @@ public:
     const char* stationId() const { return _stationId; }
     const char* line() const { return _line; }
     const char* destination() const { return _destination; }   // Updated from API
+    Direction direction() const { return _direction; }
 
     void setStationId(const char* stationId);
     void setLine(const char* line);
     void setDestination(const char* destination);
+    void setDirection(Direction direction) { _direction = direction; }
 
     // --- Next arrival (the one the row leads with) ---
     bool isRealtime() const { return _isRealtime; }
@@ -55,7 +71,8 @@ public:
     void clearNextArrival();
 
     /**
-     * @brief Blanks the destination and both arrivals; keeps the lookup keys.
+     * @brief Blanks the destination and both arrivals; keeps the lookup keys
+ *        (station, line and direction).
      *
      * Parsed config supplies only station and line, so this leaves a target
      * well-defined before its first fetch.
@@ -66,6 +83,7 @@ private:
     char _stationId[MAX_STATION_ID_LEN];
     char _line[MAX_LINE_LEN];
     char _destination[MAX_DESTINATION_LEN];
+    Direction _direction;
 
     bool _isRealtime;
     char _eta[MAX_ETA_LEN];
