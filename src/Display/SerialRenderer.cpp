@@ -50,19 +50,19 @@ void SerialRenderer::render(const BusTarget* targets, int count) {
         // row at a different station, and a row that is wrong because it is
         // reading the wrong station looks the same as one with no arrivals.
         Serial.printf("[SerialRenderer]   row %d: line='%s' station='%s' dest='%s' ", i,
-                      target.line, target.stationId, target.destination);
+                      target.line(), target.stationId(), target.destination());
 
-        if (target.no_data) {
+        if (target.noData()) {
             // The fetcher ran and came back empty. Distinct from a row that was
             // never filled, which shows as an empty line and station above.
             Serial.print("NO DATA");
         } else {
-            printArrival(target.last_known_ETA, target.minutes_remaining, target.is_realtime);
+            printArrival(target.eta(), target.minutesRemaining(), target.isRealtime());
 
             Serial.print(" next=");
-            if (target.has_next_arrival) {
-                printArrival(target.next_ETA, target.next_minutes_remaining,
-                             target.next_is_realtime);
+            if (target.hasNextArrival()) {
+                printArrival(target.nextEta(), target.nextMinutesRemaining(),
+                             target.nextIsRealtime());
             } else {
                 Serial.print("none");
             }

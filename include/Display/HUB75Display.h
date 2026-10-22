@@ -170,7 +170,7 @@ public:
 
     /**
      * @brief Renders all bus targets to the display.
-     * @param targets Array of BusTarget structs with arrival data.
+     * @param targets Array of BusTarget objects with arrival data.
      * @param count Number of targets in the array.
      */
     void render(const BusTarget* targets, int count) override;

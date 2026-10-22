@@ -28,8 +28,23 @@ classDiagram
     namespace include {
         class Structs {
             <<Structs.h>>
-            +BusTarget
             +WifiCredentialsData
+        }
+        class BusTarget {
+            <<BusTarget.h>>
+            -char _stationId[]
+            -char _line[]
+            -char _destination[]
+            +stationId() const char*
+            +line() const char*
+            +destination() const char*
+            +direction() Direction
+            +setDirection(Direction) void
+            +setArrival(eta, minutes, isRealtime) void
+            +setNextArrival(eta, minutes, isRealtime) void
+            +clearNextArrival() void
+            +setNoData(bool) void
+            +resetArrivals() void
         }
         class Config {
             <<Config.h>>

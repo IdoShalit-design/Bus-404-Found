@@ -190,7 +190,7 @@ int CurlBusFetcherByStation::findUnservedArrivalIndex() const {
 }
 
 bool CurlBusFetcherByStation::update(BusTarget& bus) {
-    if (bus.stationId[0] == '\0') {
+    if (bus.stationId()[0] == '\0') {
         return false;
     }
 
@@ -198,10 +198,10 @@ bool CurlBusFetcherByStation::update(BusTarget& bus) {
     // line has already been given to a row. The age check is what starts each
     // fetch cycle fresh: rows are filled faster than the cache expires, so the
     // first update() of a cycle reloads and the rest share that snapshot.
-    const bool stationChanged = strcmp(_currentStationId, bus.stationId) != 0;
+    const bool stationChanged = strcmp(_currentStationId, bus.stationId()) != 0;
     const bool cacheStale = (millis() - _loadedAtMs) >= kArrivalCacheTtlMs;
     if (stationChanged || cacheStale || findUnservedArrivalIndex() < 0) {
-        if (!loadNextArrivals(bus.stationId)) {
+        if (!loadNextArrivals(bus.stationId())) {
             return false;
         }
     }
@@ -213,25 +213,19 @@ bool CurlBusFetcherByStation::update(BusTarget& bus) {
 
     // Copy, don't alias: _arrivals is refilled in place by loadNextArrivals().
     const ArrivalData& arrival = _arrivals[index];
-    copyBounded(bus.line, sizeof(bus.line), arrival.line);
-    copyBounded(bus.destination, sizeof(bus.destination), arrival.destination);
-    copyBounded(bus.last_known_ETA, sizeof(bus.last_known_ETA), arrival.eta);
-    bus.is_realtime = arrival.is_realtime;
-    bus.minutes_remaining = arrival.minutes_remaining;
-    bus.no_data = false;
+    bus.setLine(arrival.line);
+    bus.setDestination(arrival.destination);
+    bus.setArrival(arrival.eta, arrival.minutes_remaining, arrival.is_realtime);
 
     // The same line's following arrival shares this row instead of consuming
     // the next one, so every row shows a different line.
-    bus.has_next_arrival = false;
     for (size_t i = static_cast<size_t>(index) + 1; i < _arrivalCount; i++) {
         if (strcmp(_arrivals[i].line, arrival.line) != 0) {
             continue;
         }
 
-        copyBounded(bus.next_ETA, sizeof(bus.next_ETA), _arrivals[i].eta);
-        bus.next_is_realtime = _arrivals[i].is_realtime;
-        bus.next_minutes_remaining = _arrivals[i].minutes_remaining;
-        bus.has_next_arrival = true;
+        bus.setNextArrival(_arrivals[i].eta, _arrivals[i].minutes_remaining,
+                           _arrivals[i].is_realtime);
         break;
     }
 

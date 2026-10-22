@@ -15,20 +15,6 @@ ConfigResult failure(const char* message) {
     return {false, message};
 }
 
-// Parsed config supplies only the lookup keys; blank the live arrival fields
-// so a target is well-defined before the first fetch.
-void resetArrivalState(BusTarget& target) {
-    target.destination[0] = '\0';
-    target.is_realtime = false;
-    target.last_known_ETA[0] = '\0';
-    target.minutes_remaining = 0;
-    target.no_data = false;
-    target.next_is_realtime = false;
-    target.next_ETA[0] = '\0';
-    target.next_minutes_remaining = 0;
-    target.has_next_arrival = false;
-}
-
 void copyBounded(char* dst, size_t dstSize, const char* src) {
     if (dst == nullptr || dstSize == 0) {
         return;
@@ -123,9 +109,9 @@ ConfigResult parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst
     }
 
     for (size_t i = 0; i < MAX_RUNTIME_TARGETS; i++) {
-        copyBounded(outConfig.bus.targets[i].stationId, sizeof(outConfig.bus.targets[i].stationId), stationId);
-        outConfig.bus.targets[i].line[0] = '\0';
-        resetArrivalState(outConfig.bus.targets[i]);
+        outConfig.bus.targets[i].setStationId(stationId);
+        outConfig.bus.targets[i].setLine("");
+        outConfig.bus.targets[i].resetArrivals();
     }
 
     outConfig.bus.targetCount = MAX_RUNTIME_TARGETS;
@@ -159,9 +145,9 @@ ConfigResult parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst b
             return failure("build_info.json target missing line");
         }
 
-        copyBounded(outConfig.bus.targets[idx].stationId, sizeof(outConfig.bus.targets[idx].stationId), stationId);
-        copyBounded(outConfig.bus.targets[idx].line, sizeof(outConfig.bus.targets[idx].line), lineText);
-        resetArrivalState(outConfig.bus.targets[idx]);
+        outConfig.bus.targets[idx].setStationId(stationId);
+        outConfig.bus.targets[idx].setLine(lineText);
+        outConfig.bus.targets[idx].resetArrivals();
 
         idx++;
     }
