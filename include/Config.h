@@ -46,6 +46,8 @@ constexpr uint16_t HEAP_UDP_PORT = 12345;  // UDP port for heap reports on PC
 
 // --- TimeZone ---
 #define TIME_ZONE "IST-2IDT,M3.4.4/26,M10.5.0"
+// NY subway mode shows New York times, so it runs the clock on New York time.
+#define NY_TIME_ZONE "EST5EDT,M3.2.0,M11.1.0"
 
 constexpr unsigned long FETCH_INTERVAL_MS = 30000UL;
 constexpr size_t MAX_RUNTIME_TARGETS = 3;

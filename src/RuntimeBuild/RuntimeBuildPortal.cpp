@@ -103,11 +103,15 @@ constexpr unsigned long kMaxSessionMs = 300000UL;
 // instead of a nullptr handed to WebServer::arg() at runtime.
 constexpr const char* kLineStationFields[] = {"line1StationId", "line2StationId", "line3StationId"};
 constexpr const char* kLineNumberFields[] = {"line1Number", "line2Number", "line3Number"};
+// Read only in NY subway mode, where each pair also needs a direction.
+constexpr const char* kLineDirectionFields[] = {"line1Direction", "line2Direction", "line3Direction"};
 
 static_assert(sizeof(kLineStationFields) / sizeof(kLineStationFields[0]) == MAX_RUNTIME_TARGETS,
               "Add a station field name per runtime target, here and in data/portal/index.html");
 static_assert(sizeof(kLineNumberFields) / sizeof(kLineNumberFields[0]) == MAX_RUNTIME_TARGETS,
               "Add a line field name per runtime target, here and in data/portal/index.html");
+static_assert(sizeof(kLineDirectionFields) / sizeof(kLineDirectionFields[0]) == MAX_RUNTIME_TARGETS,
+              "Add a direction field name per runtime target, here and in data/portal/index.html");
 
 struct SubmissionState {
     bool finished;
@@ -219,14 +223,17 @@ void logPortalAssets() {
 struct LineTargets {
     char stations[MAX_RUNTIME_TARGETS][MAX_STATION_ID_LEN];
     char lines[MAX_RUNTIME_TARGETS][MAX_LINE_LEN];
+    // "N" or "S"; filled only when parseLinePairs() is asked for directions.
+    char directions[MAX_RUNTIME_TARGETS][2];
     size_t count;
     const char* error;
 };
 
 // Reads up to MAX_RUNTIME_TARGETS (stationId, line) pairs from the form. A pair
 // is included only if both fields are filled in; one field on its own is a
-// validation error rather than a partially usable target.
-LineTargets parseLinePairs(WebServer& server) {
+// validation error rather than a partially usable target. With withDirection,
+// each included pair must also carry a direction of N or S.
+LineTargets parseLinePairs(WebServer& server, bool withDirection) {
     LineTargets targets = {};
 
     for (size_t i = 0; i < MAX_RUNTIME_TARGETS; i++) {
@@ -249,6 +256,17 @@ LineTargets parseLinePairs(WebServer& server) {
             !isLengthValid(lineValue.c_str(), MAX_LINE_LEN)) {
             targets.error = "Invalid station ID or line number";
             return targets;
+        }
+
+        if (withDirection) {
+            Direction direction = Direction::None;
+            if (!parseDirection(readTrimmedArg(server, kLineDirectionFields[i]).c_str(), direction)) {
+                targets.error = "Each subway entry needs a direction (N or S)";
+                return targets;
+            }
+            const char* directionText = directionToString(direction);
+            targets.directions[targets.count][0] = directionText[0];
+            targets.directions[targets.count][1] = '\0';
         }
 
         stationValue.toCharArray(targets.stations[targets.count], MAX_STATION_ID_LEN);
@@ -414,8 +432,7 @@ StepResult resolveWifiCredentials(WebServer& server, String& outSsid, String& ou
 // Writes the mode-specific payload of /build_info.json.
 StepResult persistBuildInfo(WebServer& server, BuildState state) {
     switch (state) {
-        case BuildState::BUS_BY_STATION:
-        case BuildState::NY_METRO_BY_STATION: {
+        case BuildState::BUS_BY_STATION: {
             const String stationValue = readTrimmedArg(server, "stationId");
             if (!isLengthValid(stationValue.c_str(), MAX_STATION_ID_LEN)) {
                 return stepRejected("Station ID is required");
@@ -424,8 +441,10 @@ StepResult persistBuildInfo(WebServer& server, BuildState state) {
             return saveBuildInfoStationConfig(stationValue.c_str()) ? stepOk()
                                                                     : stepFailed("Failed to save build info");
         }
-        case BuildState::BUS_BY_LINES: {
-            const LineTargets targets = parseLinePairs(server);
+        case BuildState::BUS_BY_LINES:
+        case BuildState::NY_METRO_BY_STATION: {
+            const bool withDirection = state == BuildState::NY_METRO_BY_STATION;
+            const LineTargets targets = parseLinePairs(server, withDirection);
             if (targets.error != nullptr) {
                 return stepRejected(targets.error);
             }
@@ -434,12 +453,15 @@ StepResult persistBuildInfo(WebServer& server, BuildState state) {
             // here so that storage shape stays out of the parser's signature.
             const char* stationPtrs[MAX_RUNTIME_TARGETS] = {};
             const char* linePtrs[MAX_RUNTIME_TARGETS] = {};
+            const char* directionPtrs[MAX_RUNTIME_TARGETS] = {};
             for (size_t i = 0; i < targets.count; i++) {
                 stationPtrs[i] = targets.stations[i];
                 linePtrs[i] = targets.lines[i];
+                directionPtrs[i] = targets.directions[i];
             }
 
-            return saveBuildInfoLinesConfig(stationPtrs, linePtrs, targets.count)
+            return saveBuildInfoLinesConfig(stationPtrs, linePtrs, targets.count,
+                                            withDirection ? directionPtrs : nullptr)
                        ? stepOk()
                        : stepFailed("Failed to save build info");
         }

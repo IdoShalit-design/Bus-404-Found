@@ -222,9 +222,10 @@ void App::loadConfig() {
     // is indistinguishable from a station that has no service.
     Serial.printf("[Config] Loaded %d targets\n", _runtimeConfig.bus.targetCount);
     for (int i = 0; i < _runtimeConfig.bus.targetCount; i++) {
-        Serial.printf("[Config]   target %d: station='%s' line='%s'\n", i,
+        Serial.printf("[Config]   target %d: station='%s' line='%s' direction='%s'\n", i,
                       _runtimeConfig.bus.targets[i].stationId(),
-                      _runtimeConfig.bus.targets[i].line());
+                      _runtimeConfig.bus.targets[i].line(),
+                      directionToString(_runtimeConfig.bus.targets[i].direction()));
     }
 }
 
@@ -279,7 +280,8 @@ void App::connectWifi() {
 }
 
 void App::syncClock() {
-    time_init_and_sync(TIME_ZONE);
+    const bool nyMode = _runtimeConfig.concreteBuildState == BuildState::NY_METRO_BY_STATION;
+    time_init_and_sync(nyMode ? NY_TIME_ZONE : TIME_ZONE);
 
     char timeBuf[6];
     time_get_formatted(timeBuf, sizeof(timeBuf));

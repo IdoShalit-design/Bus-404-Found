@@ -148,6 +148,22 @@ Runtime credentials and bus targets are read from files in `data/`:
 }
 ```
 
+#### NY subway mode
+
+Select **NY Subway by Line** in the setup portal, or set `"state": "NY_METRO_BY_STATION"` in `data/build_state.json`. Each target needs a station, a line and a direction. `stationId` is the MTA stop ID without the N/S suffix (from the MTA static GTFS `stops.txt`). `direction` is `N` (uptown / Bronx-bound) or `S` (downtown / Brooklyn-bound). Example `data/build_info.json`:
+
+```json
+{
+  "version": 1,
+  "targets": [
+    { "stationId": "127", "line": "2", "direction": "N" },
+    { "stationId": "127", "line": "1", "direction": "S" }
+  ]
+}
+```
+
+Data comes from the free [subwayinfo.nyc](https://subwayinfo.nyc) JSON API (no key, 10 requests per minute per IP). Each target costs one request per 30-second cycle. In this mode the clock runs on New York time.
+
 ### 3. Build & upload
 
 ```bash

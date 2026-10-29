@@ -6,7 +6,7 @@
 #include "Display/HUB75Display.h"
 #include "Fetchers/CurlBusFetcherByStation.h"
 #include "Fetchers/CurlBusFetcherByLine.h"
-#include "Fetchers/MetroFetcherStub.h"
+#include "Fetchers/NYSubwayFetcher.h"
 
 bool build(BuildState state, std::unique_ptr<IBusFetcher>& fetcher, std::unique_ptr<IRenderer>& renderer) {
     switch (state) {
@@ -24,7 +24,7 @@ bool build(BuildState state, std::unique_ptr<IBusFetcher>& fetcher, std::unique_
             return true;
         case BuildState::NY_METRO_BY_STATION:
             Serial.println("Selected state: NY_METRO_BY_STATION");
-            fetcher = std::unique_ptr<IBusFetcher>(new MetroFetcherStub());
+            fetcher = std::unique_ptr<IBusFetcher>(new NYSubwayFetcher());
             return true;
         case BuildState::USE_CURRENT_BUILD:
             Serial.println("[Build] USE_CURRENT_BUILD must be resolved before build()");

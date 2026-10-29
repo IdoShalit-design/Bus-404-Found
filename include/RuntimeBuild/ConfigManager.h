@@ -74,8 +74,11 @@ bool saveBuildInfoStationConfig(const char* stationId);
  * @param stationIds Array of station identifier strings.
  * @param lines Array of line number strings, parallel to stationIds.
  * @param targetCount Number of entries in both arrays.
+ * @param directions Optional array of "N"/"S" strings, parallel to stationIds.
+ *        NY subway mode passes it; bus line mode passes nullptr.
  * @return true when file write succeeds, false otherwise.
  */
-bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* lines, size_t targetCount);
+bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* lines, size_t targetCount,
+                              const char* const* directions = nullptr);
 
 #endif // CONFIG_MANAGER_H
