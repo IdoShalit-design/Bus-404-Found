@@ -233,7 +233,8 @@ bool saveBuildInfoStationConfig(const char* stationId) {
     return writeBuildInfoDoc(doc);
 }
 
-bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* lines, size_t targetCount) {
+bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* lines, size_t targetCount,
+                              const char* const* directions) {
     if (!ensureLittleFsReady()) {
         return false;
     }
@@ -258,6 +259,13 @@ bool saveBuildInfoLinesConfig(const char* const* stationIds, const char* const* 
         JsonObject target = targetsArray.createNestedObject();
         target["stationId"] = stationId;
         target["line"] = lineValue;
+        if (directions != nullptr) {
+            if (directions[i] == nullptr || directions[i][0] == '\0') {
+                Serial.println("[ConfigManager] Empty direction in build_info.json target");
+                return false;
+            }
+            target["direction"] = directions[i];
+        }
     }
 
     return writeBuildInfoDoc(doc);

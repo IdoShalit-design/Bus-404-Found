@@ -36,7 +36,7 @@
       font-weight: 600;
     }
 
-    input {
+    input, select {
       width: 100%;
       padding: 10px;
       border: 1px solid #d1d5db;
@@ -46,7 +46,7 @@
       font-size: 15px;
     }
 
-    input:focus {
+    input:focus, select:focus {
       outline: none;
       border-color: #0f766e;
       box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
@@ -278,8 +278,8 @@
               <span class="mode-desc">Track up to 3 specific line + station pairs.</span>
             </button>
             <button type="button" class="mode-card" data-state="NY_METRO_BY_STATION">
-              <span class="mode-title">NY Metro by Station</span>
-              <span class="mode-desc">Show NY Metro arrivals at one station.</span>
+              <span class="mode-title">NY Subway by Line</span>
+              <span class="mode-desc">Track up to 3 station + line + direction picks.</span>
             </button>
             <button type="button" class="mode-card" data-state="USE_CURRENT_BUILD">
               <span class="mode-title">Keep Current Build</span>
@@ -301,22 +301,43 @@
           </div>
 
           <div id="linesGroup" class="hidden">
-            <div class="hint">Up to 3 independent station/line pairs.</div>
+            <div class="hint" id="linesHint">Up to 3 independent station/line pairs.</div>
 
             <label for="line1StationId">Station ID (line 1)</label>
             <input id="line1StationId" name="line1StationId" maxlength="23">
             <label for="line1Number">Line Number (line 1)</label>
             <input id="line1Number" name="line1Number" maxlength="15" placeholder="7">
+            <div class="dirField hidden">
+              <label for="line1Direction">Direction (line 1)</label>
+              <select id="line1Direction" name="line1Direction">
+                <option value="N">N - Uptown / Bronx-bound</option>
+                <option value="S">S - Downtown / Brooklyn-bound</option>
+              </select>
+            </div>
 
             <label for="line2StationId">Station ID (line 2)</label>
             <input id="line2StationId" name="line2StationId" maxlength="23">
             <label for="line2Number">Line Number (line 2)</label>
             <input id="line2Number" name="line2Number" maxlength="15" placeholder="19">
+            <div class="dirField hidden">
+              <label for="line2Direction">Direction (line 2)</label>
+              <select id="line2Direction" name="line2Direction">
+                <option value="N">N - Uptown / Bronx-bound</option>
+                <option value="S">S - Downtown / Brooklyn-bound</option>
+              </select>
+            </div>
 
             <label for="line3StationId">Station ID (line 3)</label>
             <input id="line3StationId" name="line3StationId" maxlength="23">
             <label for="line3Number">Line Number (line 3)</label>
             <input id="line3Number" name="line3Number" maxlength="15" placeholder="72">
+            <div class="dirField hidden">
+              <label for="line3Direction">Direction (line 3)</label>
+              <select id="line3Direction" name="line3Direction">
+                <option value="N">N - Uptown / Bronx-bound</option>
+                <option value="S">S - Downtown / Brooklyn-bound</option>
+              </select>
+            </div>
           </div>
 
           <div id="noExtraData" class="hidden hint">No extra data needed for this mode.</div>
@@ -426,7 +447,15 @@
         linesGroup.classList.add("hidden");
         noExtraData.classList.add("hidden");
 
-        if (mode === "BUS_BY_LINES") {
+        var subway = mode === "NY_METRO_BY_STATION";
+        document.querySelectorAll(".dirField").forEach(function (field) {
+          field.classList.toggle("hidden", !subway);
+        });
+        document.getElementById("linesHint").textContent = subway
+          ? "Up to 3 subway picks. Station ID is the MTA stop ID without N/S (e.g. 127 for Times Sq). Line is the route (e.g. 2)."
+          : "Up to 3 independent station/line pairs.";
+
+        if (mode === "BUS_BY_LINES" || subway) {
           linesGroup.classList.remove("hidden");
         } else if (mode === "USE_CURRENT_BUILD") {
           noExtraData.classList.remove("hidden");

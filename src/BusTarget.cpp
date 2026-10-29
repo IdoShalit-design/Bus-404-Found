@@ -16,6 +16,34 @@ void copyBounded(char* dst, size_t dstSize, const char* src) {
 
 } // namespace
 
+const char* directionToString(Direction direction) {
+    switch (direction) {
+        case Direction::North:
+            return "N";
+        case Direction::South:
+            return "S";
+        case Direction::None:
+            break;
+    }
+    return "";
+}
+
+bool parseDirection(const char* text, Direction& outDirection) {
+    if (text == nullptr || text[0] == '\0' || text[1] != '\0') {
+        return false;
+    }
+
+    if (text[0] == 'N' || text[0] == 'n') {
+        outDirection = Direction::North;
+        return true;
+    }
+    if (text[0] == 'S' || text[0] == 's') {
+        outDirection = Direction::South;
+        return true;
+    }
+    return false;
+}
+
 BusTarget::BusTarget() {
     _stationId[0] = '\0';
     _line[0] = '\0';

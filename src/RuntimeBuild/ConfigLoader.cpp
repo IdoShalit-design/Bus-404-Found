@@ -111,6 +111,7 @@ ConfigResult parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst
     for (size_t i = 0; i < MAX_RUNTIME_TARGETS; i++) {
         outConfig.bus.targets[i].setStationId(stationId);
         outConfig.bus.targets[i].setLine("");
+        outConfig.bus.targets[i].setDirection(Direction::None);
         outConfig.bus.targets[i].resetArrivals();
     }
 
@@ -118,7 +119,11 @@ ConfigResult parseBuildInfoStationMode(RuntimeConfig& outConfig, JsonObjectConst
     return kOk;
 }
 
-ConfigResult parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj) {
+// Bus line mode and NY subway mode share this payload: up to three targets of
+// {stationId, line}. Subway targets also need "direction" ("N" or "S"), because
+// one subway station serves both directions of a line.
+ConfigResult parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst buildInfoObj,
+                                     bool requireDirection) {
     JsonArrayConst targets = buildInfoObj["targets"].as<JsonArrayConst>();
     if (targets.isNull()) {
         return failure("build_info.json missing targets array");
@@ -145,8 +150,14 @@ ConfigResult parseBuildInfoLinesMode(RuntimeConfig& outConfig, JsonObjectConst b
             return failure("build_info.json target missing line");
         }
 
+        Direction direction = Direction::None;
+        if (requireDirection && !parseDirection(target["direction"], direction)) {
+            return failure("build_info.json target needs direction N or S");
+        }
+
         outConfig.bus.targets[idx].setStationId(stationId);
         outConfig.bus.targets[idx].setLine(lineText);
+        outConfig.bus.targets[idx].setDirection(direction);
         outConfig.bus.targets[idx].resetArrivals();
 
         idx++;
@@ -188,10 +199,11 @@ ConfigResult parseBuildInfoConfig(RuntimeConfig& outConfig, BuildState concreteS
     JsonObjectConst buildInfoObj = buildInfoDoc.as<JsonObjectConst>();
     switch (concreteState) {
         case BuildState::BUS_BY_STATION:
-        case BuildState::NY_METRO_BY_STATION:
             return parseBuildInfoStationMode(outConfig, buildInfoObj);
         case BuildState::BUS_BY_LINES:
-            return parseBuildInfoLinesMode(outConfig, buildInfoObj);
+            return parseBuildInfoLinesMode(outConfig, buildInfoObj, false);
+        case BuildState::NY_METRO_BY_STATION:
+            return parseBuildInfoLinesMode(outConfig, buildInfoObj, true);
         case BuildState::USE_CURRENT_BUILD:
             return failure("Concrete state cannot be USE_CURRENT_BUILD");
         default:

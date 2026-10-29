@@ -129,6 +129,13 @@ classDiagram
         }
     }
 
+    class NYSubwayFetcher {
+        <<NYSubwayFetcher.h>>
+        -DynamicJsonDocument* _doc
+        -char _url[128]
+        +update(BusTarget bus) bool
+    }
+
     %% ============================================
     %% Future Modules
     %% ============================================
@@ -145,6 +152,7 @@ classDiagram
 
     %% Interface implementations (Strategy Pattern)
     IBusFetcher <|.. CurlBusFetcherByLine : implements
+    IBusFetcher <|.. NYSubwayFetcher : implements
     IBusFetcher <|.. MockFetcher : implements
     IBusFetcher <|.. GovIlFetcher : implements
 
@@ -167,5 +175,6 @@ classDiagram
 
     %% Data flow
     CurlBusFetcherByLine ..> BusTarget : updates
+    NYSubwayFetcher ..> BusTarget : updates
     MockFetcher ..> BusTarget : updates
     HUB75Display ..> BusTarget : renders

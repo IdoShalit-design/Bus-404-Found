@@ -18,6 +18,21 @@ enum class Direction : uint8_t {
 };
 
 /**
+ * @brief Converts a direction to the single letter used in config and URLs.
+ * @return "N", "S", or "" for Direction::None.
+ */
+const char* directionToString(Direction direction);
+
+/**
+ * @brief Parses "N" or "S" (either case).
+ *
+ * @param text Letter to parse. May be nullptr, which fails.
+ * @param outDirection Parsed direction on success; untouched on failure.
+ * @return true when text named North or South.
+ */
+bool parseDirection(const char* text, Direction& outDirection);
+
+/**
  * @brief One tracked bus target: what to look up, plus its latest arrival data.
  *
  * Owns all of its strings. Setters copy into these buffers rather than keeping
